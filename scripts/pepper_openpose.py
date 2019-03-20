@@ -43,7 +43,7 @@ def humans_to_msg(humans):
 
 
 def callback_image(data):
-    if rospy.get_param('openpose_flag', True):
+    if rospy.get_param('openpose_flag', False):
         fps_time = time.time()
         bottom_msg = rospy.wait_for_message('/naoqi_driver_node/camera/bottom/image_raw', Image)
 
