@@ -43,41 +43,44 @@ def humans_to_msg(humans):
 
 
 def callback_image(data):
-    fps_time = time.time()
-    bottom_msg = rospy.wait_for_message('/naoqi_driver_node/camera/bottom/image_raw', Image)
+    if rospy.get_param('openpose_flag', True):
+        fps_time = time.time()
+        bottom_msg = rospy.wait_for_message('/naoqi_driver_node/camera/bottom/image_raw', Image)
 
-    try:
-        cv_front = cv_bridge.imgmsg_to_cv2(data, "bgr8")
-        cv_bottom = cv_bridge.imgmsg_to_cv2(bottom_msg, "bgr8")
-        cv_image = np.append(cv_front, cv_bottom, axis=0)
+        try:
+            cv_front = cv_bridge.imgmsg_to_cv2(data, "bgr8")
+            cv_bottom = cv_bridge.imgmsg_to_cv2(bottom_msg, "bgr8")
+            cv_image = np.append(cv_front, cv_bottom, axis=0)
 
-    except CvBridgeError as err:
-        rospy.logerr('[tf-pose-estimation] Converting Image Error. ' + str(err))
-        return
+        except CvBridgeError as err:
+            rospy.logerr('[tf-pose-estimation] Converting Image Error. ' + str(err))
+            return
 
-    acquired = tf_lock.acquire(False)
-    if not acquired:
-        return
+        acquired = tf_lock.acquire(False)
+        if not acquired:
+            return
 
-    try:
-        humans = pose_estimator.inference(cv_image, resize_to_default=True, upsample_size=resize_out_ratio)
+        try:
+            humans = pose_estimator.inference(cv_image, resize_to_default=True, upsample_size=resize_out_ratio)
 
-        # draw
-        pose_image = TfPoseEstimator.draw_humans(cv_image, humans, imgcopy=False)
-        cv2.putText(pose_image, "FPS: %f" % (1.0 / (time.time() - fps_time)),
-                    (10, 10),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                    (0, 255, 0), 2)
-        pub_img.publish(cv_bridge.cv2_to_imgmsg(pose_image, 'bgr8'))
+            # draw
+            pose_image = TfPoseEstimator.draw_humans(cv_image, humans, imgcopy=False)
+            cv2.putText(pose_image, "FPS: %f" % (1.0 / (time.time() - fps_time)),
+                        (10, 10),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
+                        (0, 255, 0), 2)
+            pub_img.publish(cv_bridge.cv2_to_imgmsg(pose_image, 'bgr8'))
 
-    finally:
-        tf_lock.release()
+        finally:
+            tf_lock.release()
 
-    msg = humans_to_msg(humans)
-    msg.image_w = data.width
-    msg.image_h = data.height
-    msg.header = data.header
+        msg = humans_to_msg(humans)
+        msg.image_w = data.width
+        msg.image_h = data.height
+        msg.header = data.header
 
-    pub_pose.publish(msg)
+        pub_pose.publish(msg)
+
+    return
 
 
 if __name__ == '__main__':
