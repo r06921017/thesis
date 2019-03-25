@@ -42,7 +42,7 @@ def humans_to_msg(humans):
 
 
 def callback_image(data):
-    if rospy.get_param('openpose_flag', False):
+    if rospy.get_param('use_openpose', False):
         fps_time = time.time()
 
         try:
@@ -61,9 +61,6 @@ def callback_image(data):
 
             # draw
             pose_image = TfPoseEstimator.draw_humans(cv_image, humans, imgcopy=False)
-            cv2.putText(pose_image, "FPS: %f" % (1.0 / (time.time() - fps_time)),
-                        (10, 10),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                        (0, 255, 0), 2)
             pub_img.publish(cv_bridge.cv2_to_imgmsg(pose_image, 'bgr8'))
 
         finally:

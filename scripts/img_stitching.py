@@ -13,25 +13,24 @@ from sensor_msgs.msg import Image
 
 
 def callback_image(data):
-    if rospy.get_param('openpose_flag', False):
-        bottom_msg = rospy.wait_for_message('/naoqi_driver_node/camera/bottom/image_raw', Image)
 
-        try:
-            cv_front = cv_bridge.imgmsg_to_cv2(data, "bgr8")
-            cv_bottom = cv_bridge.imgmsg_to_cv2(bottom_msg, "bgr8")
-            cv_image = np.append(cv_front, cv_bottom, axis=0)
-            pub_img.publish(cv_bridge.cv2_to_imgmsg(cv_image, 'bgr8'))
+    bottom_msg = rospy.wait_for_message('/naoqi_driver_node/camera/bottom/image_raw', Image)
 
-        except CvBridgeError as err:
-            rospy.logerr('[tf-pose-estimation] Converting Image Error. ' + str(err))
-            return
+    try:
+        cv_front = cv_bridge.imgmsg_to_cv2(data, "bgr8")
+        cv_bottom = cv_bridge.imgmsg_to_cv2(bottom_msg, "bgr8")
+        cv_image = np.append(cv_front, cv_bottom, axis=0)
+        pub_img.publish(cv_bridge.cv2_to_imgmsg(cv_image, "bgr8"))
+
+    except CvBridgeError as err:
+        rospy.logerr('[tf-pose-estimation] Converting Image Error. ' + str(err))
 
     return
 
 
 if __name__ == '__main__':
     rospy.loginfo('Image Stitching for Pepper')
-    rospy.init_node('img_stitching', anonymous=True, log_level=rospy.INFO)
+    rospy.init_node('img_stitching', anonymous=False, log_level=rospy.INFO)
 
     # parameters
     image_topic = rospy.get_param('~camera', '/naoqi_driver_node/camera/front/image_raw')
