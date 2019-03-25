@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<launch>
+    <rosparam param="Pepper_ip" subst_value="True">$(env Pepper_ip)</rosparam>
+	<include file="$(find thesis)/launch/map_server_indoor.launch"/>
+	<include file="$(find thesis)/launch/amcl_config.launch"/>
+	<include file="$(find thesis)/launch/move_base.launch"/>
+	<node name="fake_laser" pkg="thesis" type="laser_fake_produce.py"/>
+	<node name="pepper_st" pkg="thesis" type="pepper_st.py"/>
+</launch>
