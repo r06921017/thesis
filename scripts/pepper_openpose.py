@@ -7,8 +7,6 @@ Input: images from both top and bottom camera from Pepper
 
 import os
 import sys
-import cv2
-import time
 
 from threading import Lock
 import rospy
@@ -43,7 +41,6 @@ def humans_to_msg(humans):
 
 def callback_image(data):
     if rospy.get_param('use_openpose', False):
-        fps_time = time.time()
 
         try:
             cv_image = cv_bridge.imgmsg_to_cv2(data, "bgr8")
