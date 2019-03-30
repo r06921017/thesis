@@ -167,12 +167,12 @@ def bd_callback(data):
             obj_pixel_y = obj.ymin + bound_depth_img.shape[0] // 2
 
             # Draw on depth image
-            # depth_img = cv2.circle(depth_img, (obj.xmin + bound_depth_img.shape[1] // 2,
-            #                                    obj.ymin + bound_depth_img.shape[0] // 2), 3, 100, 2)
-            # depth_img = cv2.rectangle(depth_img, (obj.xmin + sxmin, obj.ymin + symin),
-            #                           (obj.xmin + sxmax, obj.ymin + symax), 200, 2)
-            #
-            # depth_img = cv2.rectangle(depth_img, (obj.xmin, obj.ymin), (obj.xmax, obj.ymax), 255, 2)
+            depth_img = cv2.circle(depth_img, (obj.xmin + bound_depth_img.shape[1] // 2,
+                                               obj.ymin + bound_depth_img.shape[0] // 2), 3, 100, 2)
+            depth_img = cv2.rectangle(depth_img, (obj.xmin + sxmin, obj.ymin + symin),
+                                      (obj.xmin + sxmax, obj.ymin + symax), 200, 2)
+
+            depth_img = cv2.rectangle(depth_img, (obj.xmin, obj.ymin), (obj.xmax, obj.ymax), 255, 2)
 
             # Convert camera data to pose relative to robot depth camera
             obj_x, obj_y = camera2pose(depth_val, obj_pixel_x, obj_pixel_y,
@@ -254,7 +254,7 @@ if __name__ == '__main__':
 
     # Camera info subscribe once
     fx, fy, cx, cy, cam_width, cam_height = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    cam_info_sub = rospy.Subscriber(camera_info_topic, CameraInfo, get_cam_info)
+    cam_info_sub = rospy.Subscriber(camera_info_topic, CameraInfo, get_cam_info)  # only subscribe once
 
     obj_pose_array = ObjPoseArray()
     cv_bridge = CvBridge()
@@ -266,10 +266,10 @@ if __name__ == '__main__':
     rospy.wait_for_message(depth_topic, Image, timeout=30)
 
     # Publisher
-    depth_box_pub = rospy.Publisher("/get_human/depth_box", Image, queue_size=1)
-    temp_map_pub = rospy.Publisher("/get_human/temp_map", Image, queue_size=1)
-    obj_pose_pub = rospy.Publisher("/get_human/human_position", ObjPoseArray, queue_size=10)
-    obj_mark_pub = rospy.Publisher("/get_human/human_marker", Marker, queue_size=1)
+    depth_box_pub = rospy.Publisher("/thesis/depth_box", Image, queue_size=1)
+    temp_map_pub = rospy.Publisher("/thesis/robot_human_location", Image, queue_size=1)
+    obj_pose_pub = rospy.Publisher("/thesis/human_location", ObjPoseArray, queue_size=10)
+    obj_mark_pub = rospy.Publisher("/thesis/human_marker", Marker, queue_size=1)
 
     rospy.Subscriber("/darknet_ros/bounding_boxes", BoundingBoxes, bd_callback, queue_size=1)
 
@@ -280,7 +280,6 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         try:
             rate.sleep()
-            # rospy.spin()
 
         except rospy.ROSInterruptException:
             rospy.loginfo('Shut down get_human ...')
