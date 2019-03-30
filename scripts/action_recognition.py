@@ -4,11 +4,14 @@
 This is for human action recognition
 """
 import rospy
+import rospkg
 import numpy as np
 import pandas as pd
 from numpy.linalg import norm
 from tfpose_ros.msg import Persons
 from darknet_ros_msgs.msg import *
+
+np.set_printoptions(precision=2)
 
 
 def isin_bbox(pt, xmin, xmax, ymin, ymax):
@@ -26,31 +29,55 @@ def isin_bbox(pt, xmin, xmax, ymin, ymax):
     return np.all(np.logical_and(ll <= pt, pt <= ur))
 
 
-def get_vector_angle(vec1, vec2):
+def vector_angle(vec1, vec2):
     """
     calculate the angle between two vectors
     :param vec1: vector as np.array()
     :param vec2: vector as np.array()
     :return: angle in degree
     """
-    return np.arccos(np.dot(vec1, vec2) / (norm(vec1) * norm(vec2))) / np.pi * 180
+    return np.degrees(np.arccos(np.dot(vec1, vec2).astype(np.float) / (norm(vec1) * norm(vec2))))
 
 
-def get_hand_eye_obj(joints, pose_range=60, face_range=1, angle_range=55):  # pixel unit
+def prob_norm(vec):
+    return vec.astype(np.float) / np.sum(vec) if np.sum(vec) > 0. else vec
+
+
+def hand_eye_obj(joints, pose_range=60, face_range=1, angle_range=45):  # pixel unit
 
     hand_obj_list = []
     eye_obj_list = []
-    hand_eye = None
+    hand_eye = 0
 
     obj_list = rospy.wait_for_message('/darknet_ros/bounding_boxes', BoundingBoxes)
 
-    for obj in obj_list.bounding_boxes:
+    # right face, left face length in pixel unit
+    rface_len = norm(joints[16] - joints[0]) if np.all(joints[16] > 0) else -1
+    lface_len = norm(joints[17] - joints[0]) if np.all(joints[17] > 0) else -1
+    print 'rface_len, lface_len = ', rface_len, ', ', lface_len
 
-        # check if human skeleton is in current bounding box
-        if obj.Class == 'person' and isin_bbox(joints[0], obj.xmin, obj.xmax, obj.ymin, obj.ymax):
-            continue
+    # check whether human is facing robot or not
+    if rface_len >= 0 and lface_len >= 0 and np.abs(rface_len - lface_len) < face_range:
+        print 'human facing robot'
 
-        elif obj.Class == 'book':  # may be 'else' in the future
+    else:  # human not facing robot
+        ear = joints[16] if rface_len > lface_len else joints[17]  # check right or left ear
+        rhand_vec = joints[4] - ear if np.all(joints[4] > 0) else -1
+        lhand_vec = joints[7] - ear if np.all(joints[7] > 0) else -1
+        eye_vec = joints[0] - ear
+
+        # check if eyes are looking at hands
+        rhand_eye_angle = vector_angle(eye_vec, rhand_vec) if np.all(joints[4] > 0) else -1
+        lhand_eye_angle = vector_angle(eye_vec, lhand_vec) if np.all(joints[7] > 0) else -1
+        hand_eye = int(0 < rhand_eye_angle < angle_range or 0 < lhand_eye_angle < angle_range)  # 1 or 0
+
+        for obj in obj_list.bounding_boxes:
+
+            # check if human skeleton is in current bounding box
+            if obj.Class == 'person' and isin_bbox(joints[0], obj.xmin, obj.xmax, obj.ymin, obj.ymax):
+                continue
+
+            # elif obj.Class == 'book':  # may be 'else' in the future
             x_mean = (obj.xmin + obj.xmax) / 2.0
             y_mean = (obj.ymin + obj.ymax) / 2.0
             obj_pos = np.array([x_mean, y_mean])
@@ -62,57 +89,69 @@ def get_hand_eye_obj(joints, pose_range=60, face_range=1, angle_range=55):  # pi
             if (0 < lhand_dis < pose_range) or (0 < rhand_dis < pose_range):
                 hand_obj_list.append(obj)
 
-            # right face, left face length in pixel unit
-            rface_len = norm(joints[16] - joints[0]) if np.all(joints[16] > 0) else -1
-            lface_len = norm(joints[17] - joints[0]) if np.all(joints[17] > 0) else -1
-            print 'rface_len, lface_len = ', rface_len, ', ', lface_len
+            # check if eyes are looking at object, calculate the angle btw object and eyes
+            obj_vec = obj_pos - ear
+            obj_eye_angle = vector_angle(eye_vec, obj_vec)
 
-            # check whether human is facing robot or not
-            if rface_len >= 0 and lface_len >= 0 and np.abs(rface_len-lface_len) < face_range:
-                print 'human facing robot'
+            if __debug__:
+                print 'eye obj angle = ', obj_eye_angle
 
-            else:  # human not facing robot
-                if rface_len > lface_len:
-                    rhand_vec = joints[4] - joints[16] if np.all(joints[4] > 0) else -1
-                    lhand_vec = joints[7] - joints[16] if np.all(joints[7] > 0) else -1
-                    eye_vec = joints[0] - joints[16]
-                    obj_vec = obj_pos - joints[16]
-                else:
-                    rhand_vec = joints[4] - joints[17] if np.all(joints[4] > 0) else -1
-                    lhand_vec = joints[7] - joints[17] if np.all(joints[7] > 0) else -1
-                    eye_vec = joints[0] - joints[17]
-                    obj_vec = obj_pos - joints[17]
+            if np.abs(obj_eye_angle) < angle_range:  # unit: degree
+                eye_obj_list.append(obj)
 
-                # check if eyes are looking at object, calculate the angle btw object and eyes
-                obj_eye_angle = get_vector_angle(eye_vec, obj_vec)
-                if np.abs(obj_eye_angle) < angle_range:  # unit: degree
-                    eye_obj_list.append(obj)
-
-                # check if eyes are looking at hands
-                rhand_eye_angle = get_vector_angle(eye_vec, rhand_vec) if np.all(joints[4] > 0) else -1
-                lhand_eye_angle = get_vector_angle(eye_vec, lhand_vec) if np.all(joints[7] > 0) else -1
-
-                print 'hand eye angle = ', rhand_eye_angle, lhand_eye_angle
-
-                hand_eye = (0 < rhand_eye_angle < angle_range or 0 < lhand_eye_angle < angle_range)  # bool
+        if __debug__:
+            # print 'rhand_vec = ', rhand_vec
+            # print 'lhand_vec = ', lhand_vec
+            # print 'eye_vec   = ', eye_vec
+            print 'hand obj list = ', [ele.Class for ele in hand_obj_list]
+            print 'eye obj list  = ', [ele.Class for ele in eye_obj_list]
+            print 'hand eye angle = ', rhand_eye_angle, lhand_eye_angle
+            print 'looking at hand? ', hand_eye
 
     return hand_obj_list, eye_obj_list, hand_eye
 
 
-def action_recognition(hand_obj_list, eye_obj_list, hand_eye):
-
-    def prob_norm(vec):
-        return vec.astype(np.float) / np.sum(vec)
-
-    action_prob = np.zeros(action_num, np.float)  # shape = (14,)
+def get_action(hand_obj_list, eye_obj_list, hand_eye):
+    """
+    probability distribution for action recognition based on hand, eye, objects
+    :param hand_obj_list: list of objects around hands
+    :param eye_obj_list: list of objects eyes look at
+    :param hand_eye: true if human looks at hands
+    :return: action probability, normalized np.array, shape=(action_num,)
+    """
+    p_acts_hand = np.zeros(action_num, np.float)  # shape = (action_num,)
+    p_acts_eye = np.zeros(action_num, np.float)  # shape = (action_num,)
 
     for obj in hand_obj_list:
-        hand_prob = prob_norm(hand_actions[obj, :].values)
-        eyes_prob = prob_norm(eyes_actions[obj, :].values)
-        heas_prob = prob_norm(eyes_hand[obj, :].values)  # hand-eyes-actions
+        # print '--- hand object list ---'
+        # print 'object = ', obj.Class, ' ', type(obj.Class)
+        # print 'obj_act = ', hand_acts.loc[obj.Class, :].values
+        # print 'p_obj = ', obj.probability
+        p_acts_hand += prob_norm(hand_acts.loc[obj.Class, :].values) * obj.probability
 
-    return
+    for obj in eye_obj_list:
+        # print '--- eye object list ---'
+        # print 'obj_act = ', prob_norm(hand_acts.loc[obj.Class, :].values)
+        # print 'p_obj = ', obj.probability
+        p_acts_eye += prob_norm(eyes_acts.loc[obj.Class, :].values) * obj.probability
 
+    if np.sum(p_acts_hand) == 0.:
+        p_acts_hand[-1] = 1.
+
+    if np.sum(p_acts_eye) == 0.:
+        p_acts_eye[-1] = 1.
+
+    p_acts = prob_norm(p_acts_hand + p_acts_eye + p_eye_hand * hand_eye)
+    action = action_cat[np.argmax(p_acts)] if np.max(p_acts) > 0.1 else action_cat[-1]
+
+    if __debug__:
+        print 'p(act|hand) = ', prob_norm(p_acts_hand)
+        print 'p(act|eyes) = ', prob_norm(p_acts_eye)
+        print 'p(action)   = ', p_acts
+        print 'action = ', action
+
+    return action
+    
 
 def person_callback(data):
     """
@@ -145,30 +184,33 @@ def person_callback(data):
                     person_list.append(joints)
 
     for idx, joints in enumerate(person_list):
-        hand_obj_list, eye_obj_list, hand_eye = get_hand_eye_obj(joints)
+        hand_obj_list, eye_obj_list, hand_eye = hand_eye_obj(joints)
 
-        if __debug__:
-            print 'person:', idx, ' hand:',
-            for temp_obj in hand_obj_list:
-                print temp_obj.Class, '(', temp_obj.probability, '), ',
-            print '| head:',
-            for temp_obj in eye_obj_list:
-                print temp_obj.Class,
-            print ' '
-            print 'looking at hand? ', hand_eye
+        # if __debug__:
+        #     print 'person:', idx, ' hand:',
+        #     for temp_obj in hand_obj_list:
+        #         print temp_obj.Class, '(', temp_obj.probability, '), ',
+        #     print '| head:',
+        #     for temp_obj in eye_obj_list:
+        #         print temp_obj.Class,
+        #     print ' '
+        #     print 'looking at hand? ', hand_eye
+
+        action = get_action(hand_obj_list, eye_obj_list, hand_eye)
+
     return
 
 
 if __name__ == '__main__':
     # global const
-    hand_actions = pd.read_csv('../config/hand_actions.csv', sep=',')  # DataFrame
-    eyes_actions = pd.read_csv('../config/eyes_actions.csv', sep=',')  # DataFrame
-    eyes_hand = pd.read_csv('../config/eyes_hand.csv', sep=',')  # DataFrame
-    
-    action_cat = hand_actions.columns.to_list()  # category of actions
+    config_dir = rospkg.RosPack().get_path('thesis') + '/config/'
+    hand_acts = pd.read_csv(config_dir + 'hand_actions.csv', sep=',')  # DataFrame
+    eyes_acts = pd.read_csv(config_dir + 'eyes_actions.csv', sep=',')  # DataFrame
+    eye_hand_acts = pd.read_csv(config_dir + 'eyes_hand.csv', sep=',')  # DataFrame
+    p_eye_hand = prob_norm(eye_hand_acts.values[0])  # shape=(action_num,)
+
+    action_cat = hand_acts.columns.to_list()  # category of actions
     action_num = len(action_cat)
-    w = 320
-    h = 480
     part_num = 18
 
     rospy.init_node('action_reg', log_level=rospy.INFO)

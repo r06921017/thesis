@@ -167,12 +167,12 @@ def bd_callback(data):
             obj_pixel_y = obj.ymin + bound_depth_img.shape[0] // 2
 
             # Draw on depth image
-            depth_img = cv2.circle(depth_img, (obj.xmin + bound_depth_img.shape[1] // 2,
-                                               obj.ymin + bound_depth_img.shape[0] // 2), 3, 100, 2)
-            depth_img = cv2.rectangle(depth_img, (obj.xmin + sxmin, obj.ymin + symin),
-                                      (obj.xmin + sxmax, obj.ymin + symax), 200, 2)
-
-            depth_img = cv2.rectangle(depth_img, (obj.xmin, obj.ymin), (obj.xmax, obj.ymax), 255, 2)
+            # depth_img = cv2.circle(depth_img, (obj.xmin + bound_depth_img.shape[1] // 2,
+            #                                    obj.ymin + bound_depth_img.shape[0] // 2), 3, 100, 2)
+            # depth_img = cv2.rectangle(depth_img, (obj.xmin + sxmin, obj.ymin + symin),
+            #                           (obj.xmin + sxmax, obj.ymin + symax), 200, 2)
+            #
+            # depth_img = cv2.rectangle(depth_img, (obj.xmin, obj.ymin), (obj.xmax, obj.ymax), 255, 2)
 
             # Convert camera data to pose relative to robot depth camera
             obj_x, obj_y = camera2pose(depth_val, obj_pixel_x, obj_pixel_y,
@@ -248,8 +248,6 @@ if __name__ == '__main__':
     tf_listener = tf.TransformListener()
     depth_topic = '/naoqi_driver_node/camera/depth/image_raw'  # for pepper
     camera_info_topic = '/naoqi_driver_node/camera/front/camera_info'  # for pepper
-    # depth_topic = '/camera/depth_registered/image_raw'  # for kinetic v1
-    # camera_info_topic = '/camera/rgb/camera_info'  # for kinetic v1
 
     if not rospy.has_param("human_detected"):
         rospy.set_param("human_detected", False)
@@ -282,7 +280,7 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         try:
             rate.sleep()
-            rospy.spin()
+            # rospy.spin()
 
         except rospy.ROSInterruptException:
-            rospy.loginfo('Shut down get human ...')
+            rospy.loginfo('Shut down get_human ...')
