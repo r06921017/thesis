@@ -24,7 +24,7 @@ def isin_bbox(pt, xmin, xmax, ymin, ymax):
     :return: bool
     """
     if (xmin <= pt[0] <= xmax) and (ymin <= pt[1] <= ymax):
-        print 'human in box'
+        # print 'human in box'
         return True
     else:
         return False
@@ -56,8 +56,8 @@ def hand_eye_obj(joints, face_range=1, angle_range=40):  # pixel unit
     # right face, left face length in pixel unit
     rface_len = norm(joints[16] - joints[0]) if np.all(joints[16] > 0) else -1
     lface_len = norm(joints[17] - joints[0]) if np.all(joints[17] > 0) else -1
-    print 'rface_len, lface_len = ', rface_len, ', ', lface_len
 
+    # right arm, left arm length in pixel unit
     rarm_len = norm(joints[4] - joints[3]) if (np.all(joints[4] > 0)) and (np.all(joints[3] > 0)) else -1
     larm_len = norm(joints[7] - joints[6]) if (np.all(joints[7] > 0)) and (np.all(joints[6] > 0)) else -1
 
@@ -67,8 +67,6 @@ def hand_eye_obj(joints, face_range=1, angle_range=40):  # pixel unit
         pose_range = larm_len * 1.2
     else:
         pose_range = 60
-
-    print 'pose_range = ', pose_range
 
     # check whether human is facing robot or not
     if rface_len >= 0 and lface_len >= 0 and np.abs(rface_len - lface_len) < face_range:
@@ -107,8 +105,8 @@ def hand_eye_obj(joints, face_range=1, angle_range=40):  # pixel unit
             obj_vec = obj_pos - ear
             obj_eye_angle = vector_angle(eye_vec, obj_vec)
 
-            if __debug__:
-                print 'eye obj angle = ', obj_eye_angle
+            # if __debug__:
+            #     print 'eye obj angle = ', obj_eye_angle
 
             if np.abs(obj_eye_angle) < angle_range:  # unit: degree
                 eye_obj_list.append(obj)
@@ -149,16 +147,17 @@ def get_action(hand_obj_list, eye_obj_list, hand_eye):
         # print 'p_obj = ', obj.probability
         p_acts_eye += prob_norm(eyes_acts.loc[obj.Class, :].values) * obj.probability
 
-    if np.sum(p_acts_hand) == 0. and np.sum(p_acts_eye) == 0.:
-        p_acts = np.zeros(action_num, np.float)
-        p_acts[-1] = 1.
+    if np.sum(p_acts_hand) == 0.:
+        p_acts_hand[-1] = 1.
 
-    else:
-        p_acts_hand = prob_norm(p_acts_hand)  # normalize the probability
-        p_acts_eye = prob_norm(p_acts_eye)  # normalize the probability
-        p_acts = prob_norm(p_acts_hand + p_acts_eye*1.2 + p_eye_hand*hand_eye*0.6)
+    if np.sum(p_acts_eye) == 0.:
+        p_acts_eye[-1] = 1.
 
-    action = action_cat[np.argmax(p_acts)] if np.max(p_acts) > 0.3 else action_cat[-1]
+    p_acts_hand = prob_norm(p_acts_hand)  # normalize the probability
+    p_acts_eye = prob_norm(p_acts_eye)  # normalize the probability
+
+    p_acts = prob_norm(p_acts_hand + p_acts_eye * 1.2 + p_eye_hand * hand_eye)
+    action = action_cat[np.argmax(p_acts)] if np.max(p_acts) > 0.25 else action_cat[-1]
 
     if __debug__:
         print 'p(act|hand) = ', p_acts_hand
@@ -224,9 +223,6 @@ if __name__ == '__main__':
     eyes_acts = pd.read_csv(config_dir + 'eyes_actions.csv', sep=',')  # DataFrame
     eye_hand_acts = pd.read_csv(config_dir + 'eyes_hand.csv', sep=',')  # DataFrame
     p_eye_hand = prob_norm(eye_hand_acts.values[0])  # shape=(action_num,)
-
-    print 'p_eye_hand'
-    print p_eye_hand
 
     action_cat = hand_acts.columns.to_list()  # category of actions
     action_num = len(action_cat)

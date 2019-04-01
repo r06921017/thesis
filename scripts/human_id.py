@@ -73,7 +73,7 @@ if __name__ == '__main__':
         pepper_ip = rospy.get_param("Pepper_ip")
     else:
         print 'Pepper_ip is not given'
-        pepper_ip = '192.168.0.152'
+        pepper_ip = '192.168.0.183'
     print 'Pepper_ip = ', pepper_ip
 
     global motion_service, posture_service, tts_service
@@ -94,10 +94,10 @@ if __name__ == '__main__':
     as_service = session.service("ALAnimatedSpeech")
     # vea_service = session.service("ALVoiceEmotionAnalysis")
 
+    # pp_service = session.service("ALPeoplePerception")  # no use
     mem_service = session.service("ALMemory")
     qi_sub = mem_service.subscriber("PeoplePerception/PeopleDetected")
     qi_sub.signal.connect(people_detected_cb)
-    pp_service = session.service("ALPeoplePerception")
     # End Naoqi setting
 
     # rate = rospy.Rate(10)  # Hz
