@@ -179,7 +179,7 @@ def person_callback(data):
     for idx, person in enumerate(data.persons):
         joints = np.ones((part_num, 2), dtype=np.int) * -1
         for i in range(len(data.persons[idx].body_part)):
-            part = data.persons[0].body_part[i]
+            part = data.persons[idx].body_part[i]
             # Transform the joint points back to the position on the image
             joints[part.part_id, 0] = part.x * data.image_w
             joints[part.part_id, 1] = part.y * data.image_h
@@ -187,15 +187,15 @@ def person_callback(data):
         # filtering person who is too far or no head
         if np.all(joints[0] > 0) and (np.all(joints[16] > 0) or np.all(joints[17] > 0)):  # person has nose and one ear
             if np.all(joints[1] > 0):  # person has chest
-                if np.linalg.norm((joints[0] - joints[1])) > head_chest_range:  # filtering person who is too far
+                if norm(joints[0] - joints[1]) > head_chest_range:  # filtering person who is too far
                     person_list.append(joints)
 
             elif np.all(joints[2] > 0):
-                if np.linalg.norm((joints[0] - joints[2])) > head_chest_range:  # filtering person who is too far
+                if norm(joints[0] - joints[2]) > head_chest_range:  # filtering person who is too far
                     person_list.append(joints)
 
             elif np.all(joints[5] > 0):
-                if np.linalg.norm((joints[0] - joints[5])) > head_chest_range:  # filtering person who is too far
+                if norm(joints[0] - joints[5]) > head_chest_range:  # filtering person who is too far
                     person_list.append(joints)
 
     for idx, joints in enumerate(person_list):
