@@ -40,7 +40,7 @@ def humans_to_msg(humans):
 
 
 def callback_image(data):
-    if rospy.get_param('use_openpose', False):
+    if rospy.get_param('use_openpose', True):
 
         try:
             cv_image = cv_bridge.imgmsg_to_cv2(data, "bgr8")

@@ -1,5 +1,5 @@
-string Class
 string Name
+int8 id
 string ip
 string location
 int8 action

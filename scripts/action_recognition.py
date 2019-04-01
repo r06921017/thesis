@@ -23,10 +23,11 @@ def isin_bbox(pt, xmin, xmax, ymin, ymax):
     :param ymax: int
     :return: bool
     """
-    ll = np.array([xmin, ymin])  # lower-left
-    ur = np.array([xmax, ymax])  # upper-right
-
-    return np.all(np.logical_and(ll <= pt, pt <= ur))
+    if (xmin <= pt[0] <= xmax) and (ymin <= pt[1] <= ymax):
+        print 'human in box'
+        return True
+    else:
+        return False
 
 
 def vector_angle(vec1, vec2):
@@ -36,6 +37,7 @@ def vector_angle(vec1, vec2):
     :param vec2: vector as np.array()
     :return: angle in degree
     """
+
     return np.degrees(np.arccos(np.dot(vec1, vec2).astype(np.float) / (norm(vec1) * norm(vec2))))
 
 
@@ -43,7 +45,7 @@ def prob_norm(vec):
     return vec.astype(np.float) / np.sum(vec) if np.sum(vec) > 0. else vec
 
 
-def hand_eye_obj(joints, pose_range=60, face_range=1, angle_range=45):  # pixel unit
+def hand_eye_obj(joints, face_range=1, angle_range=40):  # pixel unit
 
     hand_obj_list = []
     eye_obj_list = []
@@ -55,6 +57,18 @@ def hand_eye_obj(joints, pose_range=60, face_range=1, angle_range=45):  # pixel 
     rface_len = norm(joints[16] - joints[0]) if np.all(joints[16] > 0) else -1
     lface_len = norm(joints[17] - joints[0]) if np.all(joints[17] > 0) else -1
     print 'rface_len, lface_len = ', rface_len, ', ', lface_len
+
+    rarm_len = norm(joints[4] - joints[3]) if (np.all(joints[4] > 0)) and (np.all(joints[3] > 0)) else -1
+    larm_len = norm(joints[7] - joints[6]) if (np.all(joints[7] > 0)) and (np.all(joints[6] > 0)) else -1
+
+    if rarm_len > 0:
+        pose_range = rarm_len * 1.2
+    elif larm_len > 0:
+        pose_range = larm_len * 1.2
+    else:
+        pose_range = 60
+
+    print 'pose_range = ', pose_range
 
     # check whether human is facing robot or not
     if rface_len >= 0 and lface_len >= 0 and np.abs(rface_len - lface_len) < face_range:
@@ -135,23 +149,25 @@ def get_action(hand_obj_list, eye_obj_list, hand_eye):
         # print 'p_obj = ', obj.probability
         p_acts_eye += prob_norm(eyes_acts.loc[obj.Class, :].values) * obj.probability
 
-    if np.sum(p_acts_hand) == 0.:
-        p_acts_hand[-1] = 1.
+    if np.sum(p_acts_hand) == 0. and np.sum(p_acts_eye) == 0.:
+        p_acts = np.zeros(action_num, np.float)
+        p_acts[-1] = 1.
 
-    if np.sum(p_acts_eye) == 0.:
-        p_acts_eye[-1] = 1.
+    else:
+        p_acts_hand = prob_norm(p_acts_hand)  # normalize the probability
+        p_acts_eye = prob_norm(p_acts_eye)  # normalize the probability
+        p_acts = prob_norm(p_acts_hand + p_acts_eye*1.2 + p_eye_hand*hand_eye*0.6)
 
-    p_acts = prob_norm(p_acts_hand + p_acts_eye + p_eye_hand * hand_eye)
-    action = action_cat[np.argmax(p_acts)] if np.max(p_acts) > 0.1 else action_cat[-1]
+    action = action_cat[np.argmax(p_acts)] if np.max(p_acts) > 0.3 else action_cat[-1]
 
     if __debug__:
-        print 'p(act|hand) = ', prob_norm(p_acts_hand)
-        print 'p(act|eyes) = ', prob_norm(p_acts_eye)
+        print 'p(act|hand) = ', p_acts_hand
+        print 'p(act|eyes) = ', p_acts_eye
         print 'p(action)   = ', p_acts
         print 'action = ', action
 
     return action
-    
+
 
 def person_callback(data):
     """
@@ -159,7 +175,7 @@ def person_callback(data):
     :return: action
     """
     person_list = []  # a list of 2D array
-    head_chest_range = 40  # distance threshold btw joint[0] and joint[1]
+    head_chest_range = 20  # distance threshold btw joint[0] and joint[1]
 
     for idx, person in enumerate(data.persons):
         joints = np.ones((part_num, 2), dtype=np.int) * -1
@@ -209,11 +225,14 @@ if __name__ == '__main__':
     eye_hand_acts = pd.read_csv(config_dir + 'eyes_hand.csv', sep=',')  # DataFrame
     p_eye_hand = prob_norm(eye_hand_acts.values[0])  # shape=(action_num,)
 
+    print 'p_eye_hand'
+    print p_eye_hand
+
     action_cat = hand_acts.columns.to_list()  # category of actions
     action_num = len(action_cat)
     part_num = 18
 
-    rospy.init_node('action_reg', log_level=rospy.INFO)
+    rospy.init_node('action_recognition', log_level=rospy.INFO)
     rospy.loginfo('action_reg start!')
 
     rospy.Subscriber('/thesis/human_pose', Persons, person_callback, queue_size=1)
