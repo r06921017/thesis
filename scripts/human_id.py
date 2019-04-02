@@ -114,6 +114,20 @@ def greeting_cb():
     return
 
 
+def get_joint_color(img, joints):
+    """
+    get the color of pixel where the joints are
+    :param img: BGR input image for openpose, np.array(height, width, 3)
+    :param joints: lists of numbers of joints, [1, 2, 5]
+    :return: lists of RGB colors, [np.array([b,g,r]), ...]
+    """
+    colors = []
+    for j in joints:
+        colors.append(img[joints[j, 1], joints[j, 0], :] if np.all(joints[j] > 0) else -1)
+
+    return colors
+
+
 if __name__ == '__main__':
     rospy.init_node('human_id', log_level=rospy.INFO)
     part_num = 18
