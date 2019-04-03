@@ -9,6 +9,7 @@ from jsk_gui_msgs.msg import VoiceMessage
 from tfpose_ros.msg import Persons
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
+from thesis.msg import Human, HumanArray
 
 import sys
 import qi
@@ -29,6 +30,21 @@ def get_ip(data):
     print 'data = ', data
 
     return ip_num
+
+
+def get_joint_color(img, joints, joints_list):
+    """
+    get the color of pixel where the joints are
+    :param img: BGR input image for openpose, np.array(height, width, 3)
+    :param joints: the joints from OpenPose in pixel unit
+    :param joints_list: lists of numbers of joints, [1, 2, 5]
+    :return: lists of RGB colors, [np.array([b,g,r]), ...]
+    """
+    colors = []
+    for j in joints_list:
+        colors.append(img[joints[j, 1], joints[j, 0], :] if np.all(joints[j] > 0) else -1)
+
+    return colors
 
 
 def show_color(colors):
@@ -63,10 +79,10 @@ def greeting_cb():
     print voice_msg
 
     ip_num = get_ip(voice_msg)
-    name = voice_msg.texts[0].split(' ')
+    name = voice_msg.texts[0].split(' ')[0]
 
     print 'ip = ', ip_num
-    print 'name = ', name[0]
+    print 'name = ', name
 
     try:
         img_stitch = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching', Image, timeout=10), "bgr8")
@@ -96,41 +112,25 @@ def greeting_cb():
 
     else:
         # Show picked joint
-        # cv2.circle(img_stitch, (max_joints[1, 0], max_joints[1, 1]), 5, (255, 0, 0), 2)
-        # cv2.circle(img_stitch, (max_joints[2, 0], max_joints[2, 1]), 5, (0, 255, 0), 2)
-        # cv2.circle(img_stitch, (max_joints[5, 0], max_joints[5, 1]), 5, (0, 0, 255), 2)
-        # cv2.imshow('max_joint', img_stitch)
-        # cv2.waitKey(5000)
+        colors = get_joint_color(img_stitch, max_joints, joints_features)
+        show_color(colors)
 
-        color_1 = img_stitch[max_joints[1, 1], max_joints[1, 0], :] if np.all(max_joints[1] > 0) else -1
-        color_2 = img_stitch[max_joints[2, 1], max_joints[2, 0], :] if np.all(max_joints[2] > 0) else -1
-        color_5 = img_stitch[max_joints[5, 1], max_joints[5, 0], :] if np.all(max_joints[5] > 0) else -1
+        # Create Human message and store in yaml format
+        human = Human()
+        human.Name = name
+        human.ip = ip_num
 
-        show_color([color_2, color_1, color_5])
 
-        respond = 'I got it, nice to meet you ' + name[0]
+        respond = 'I got it, nice to meet you ' + name
         as_service.say(respond)
 
     return
 
 
-def get_joint_color(img, joints):
-    """
-    get the color of pixel where the joints are
-    :param img: BGR input image for openpose, np.array(height, width, 3)
-    :param joints: lists of numbers of joints, [1, 2, 5]
-    :return: lists of RGB colors, [np.array([b,g,r]), ...]
-    """
-    colors = []
-    for j in joints:
-        colors.append(img[joints[j, 1], joints[j, 0], :] if np.all(joints[j] > 0) else -1)
-
-    return colors
-
-
 if __name__ == '__main__':
     rospy.init_node('human_id', log_level=rospy.INFO)
     part_num = 18
+    joints_features = [1, 2, 5]
     cv_bridge = CvBridge()
 
     # Naoqi setting
