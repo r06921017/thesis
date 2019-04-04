@@ -209,25 +209,29 @@ def person_callback(data):
     return
 
 
-def load_human_info():  # for human identification
-    human_info_dir = '/home/robot/catkin_ws/src/thesis/human_info/'
+def load_human_info(human_info_dir='~/catkin_ws/src/thesis/human_info/'):
+    """
+    load human info for human identification.
+    :return: A list of stored human beings.
+    """
+
     yaml_list = os.listdir(human_info_dir)
     print 'Current human in dataset: ', yaml_list
 
-    human_list = []
+    h_list = []
     for f in yaml_list:
         temp = yaml.load(open(human_info_dir + f))
         print type(temp)
 
         human_msg = message_converter.convert_dictionary_to_ros_message('thesis/Human', temp)
-        human_list.append(human_msg)
+        h_list.append(human_msg)
 
-    return
+    return h_list
 
 
 if __name__ == '__main__':
 
-    # global const
+    # global const for action recognition
     config_dir = rospkg.RosPack().get_path('thesis') + '/config/'
     hand_acts = pd.read_csv(config_dir + 'hand_actions.csv', sep=',')  # DataFrame
     eyes_acts = pd.read_csv(config_dir + 'eyes_actions.csv', sep=',')  # DataFrame
@@ -237,6 +241,9 @@ if __name__ == '__main__':
     action_cat = hand_acts.columns.to_list()  # category of actions
     action_num = len(action_cat)
     part_num = 18
+
+    # for human identification
+    human_list = load_human_info()
 
     rospy.init_node('action_recognition', log_level=rospy.INFO)
     rospy.loginfo('action_reg start!')
