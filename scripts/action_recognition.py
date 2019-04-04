@@ -11,6 +11,10 @@ from numpy.linalg import norm
 from tfpose_ros.msg import Persons
 from darknet_ros_msgs.msg import *
 
+from rospy_message_converter import message_converter
+import yaml
+import os
+
 np.set_printoptions(precision=2)
 
 
@@ -200,23 +204,29 @@ def person_callback(data):
 
     for idx, joints in enumerate(person_list):
         hand_obj_list, eye_obj_list, hand_eye = hand_eye_obj(joints)
-
-        # if __debug__:
-        #     print 'person:', idx, ' hand:',
-        #     for temp_obj in hand_obj_list:
-        #         print temp_obj.Class, '(', temp_obj.probability, '), ',
-        #     print '| head:',
-        #     for temp_obj in eye_obj_list:
-        #         print temp_obj.Class,
-        #     print ' '
-        #     print 'looking at hand? ', hand_eye
-
         action = get_action(hand_obj_list, eye_obj_list, hand_eye)
 
     return
 
 
+def load_human_info():  # for human identification
+    human_info_dir = '/home/robot/catkin_ws/src/thesis/human_info/'
+    yaml_list = os.listdir(human_info_dir)
+    print 'Current human in dataset: ', yaml_list
+
+    human_list = []
+    for f in yaml_list:
+        temp = yaml.load(open(human_info_dir + f))
+        print type(temp)
+
+        human_msg = message_converter.convert_dictionary_to_ros_message('thesis/Human', temp)
+        human_list.append(human_msg)
+
+    return
+
+
 if __name__ == '__main__':
+
     # global const
     config_dir = rospkg.RosPack().get_path('thesis') + '/config/'
     hand_acts = pd.read_csv(config_dir + 'hand_actions.csv', sep=',')  # DataFrame

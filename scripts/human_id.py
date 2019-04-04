@@ -9,7 +9,8 @@ from jsk_gui_msgs.msg import VoiceMessage
 from tfpose_ros.msg import Persons
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-from thesis.msg import Human, HumanArray
+from thesis.msg import Human
+from rospy_message_converter import message_converter
 
 import sys
 import qi
@@ -38,11 +39,19 @@ def get_joint_color(img, joints, joints_list):
     :param img: BGR input image for openpose, np.array(height, width, 3)
     :param joints: the joints from OpenPose in pixel unit
     :param joints_list: lists of numbers of joints, [1, 2, 5]
-    :return: lists of RGB colors, [np.array([b,g,r]), ...]
+    :return: 2D array of RGB colors, np.array([[b1, g1, r1], [b2, g2, r2], [b3, g3, r3]]), shape=(-1, 3)
     """
-    colors = []
+    colors = np.array([]).astype(np.int8)
+    print 'joint_list = ', joints_list
+
     for j in joints_list:
-        colors.append(img[joints[j, 1], joints[j, 0], :] if np.all(joints[j] > 0) else -1)
+        if np.all(joints[j] > 0):
+            colors = np.append(colors, img[joints[j, 1], joints[j, 0], :])
+
+        else:
+            colors = np.append(colors, np.array([-1, -1, -1]))
+
+    colors = colors.reshape(-1, 3)
 
     return colors
 
@@ -116,10 +125,11 @@ def greeting_cb():
         show_color(colors)
 
         # Create Human message and store in yaml format
-        human = Human()
-        human.Name = name
-        human.ip = ip_num
-
+        human = Human(name=name, ip=ip_num, shirt_color=colors.tolist(), location='greet')
+        human_dic = message_converter.convert_ros_message_to_dictionary(human)  # transform into dictionary type
+        f_name = '/home/robot/catkin_ws/src/thesis/human_info/' + name + '.yaml'
+        with open(f_name, 'w') as f:
+            yaml.dump(human_dic, f)
 
         respond = 'I got it, nice to meet you ' + name
         as_service.say(respond)
@@ -134,12 +144,11 @@ if __name__ == '__main__':
     cv_bridge = CvBridge()
 
     # Naoqi setting
-
     if rospy.has_param("Pepper_ip"):
         pepper_ip = rospy.get_param("Pepper_ip")
     else:
         print 'Pepper_ip is not given'
-        pepper_ip = '192.168.0.152'
+        pepper_ip = '192.168.0.184'
     print 'Pepper_ip = ', pepper_ip
 
     session = qi.Session()
@@ -154,7 +163,6 @@ if __name__ == '__main__':
     tts_service = session.service('ALTextToSpeech')
     tts_service.setLanguage('English')
     as_service = session.service("ALAnimatedSpeech")
-
     # End Naoqi setting
 
     rospy.loginfo('human_id start!')
