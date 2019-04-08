@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-This is for human action recognition
+This is for human action recognition and human identification
 """
 import rospy
 import rospkg
@@ -10,10 +10,10 @@ import pandas as pd
 from numpy.linalg import norm
 from tfpose_ros.msg import Persons
 from darknet_ros_msgs.msg import *
+from cv_bridge import CvBridge
+from sensor_msgs.msg import Image
 
-from rospy_message_converter import message_converter
-import yaml
-import os
+from human_id import load_human_info, get_people_joints, identify_single_human, store_human_info
 
 np.set_printoptions(precision=2)
 
@@ -41,7 +41,6 @@ def vector_angle(vec1, vec2):
     :param vec2: vector as np.array()
     :return: angle in degree
     """
-
     return np.degrees(np.arccos(np.dot(vec1, vec2).astype(np.float) / (norm(vec1) * norm(vec2))))
 
 
@@ -115,14 +114,14 @@ def hand_eye_obj(joints, face_range=1, angle_range=40):  # pixel unit
             if np.abs(obj_eye_angle) < angle_range:  # unit: degree
                 eye_obj_list.append(obj)
 
-        if __debug__:
+        # if __debug__:
             # print 'rhand_vec = ', rhand_vec
             # print 'lhand_vec = ', lhand_vec
             # print 'eye_vec   = ', eye_vec
-            print 'hand obj list = ', [ele.Class for ele in hand_obj_list]
-            print 'eye obj list  = ', [ele.Class for ele in eye_obj_list]
-            print 'hand eye angle = ', rhand_eye_angle, lhand_eye_angle
-            print 'looking at hand? ', hand_eye
+            # print 'hand obj list = ', [ele.Class for ele in hand_obj_list]
+            # print 'eye obj list  = ', [ele.Class for ele in eye_obj_list]
+            # print 'hand eye angle = ', rhand_eye_angle, lhand_eye_angle
+            # print 'looking at hand? ', hand_eye
 
     return hand_obj_list, eye_obj_list, hand_eye
 
@@ -161,15 +160,16 @@ def get_action(hand_obj_list, eye_obj_list, hand_eye):
     p_acts_eye = prob_norm(p_acts_eye)  # normalize the probability
 
     p_acts = prob_norm(p_acts_hand + p_acts_eye * 1.2 + p_eye_hand * hand_eye)
-    action = action_cat[np.argmax(p_acts)] if np.max(p_acts) > 0.25 else action_cat[-1]
+    act_id = np.argmax(p_acts) if np.max(p_acts) > 0.25 else -1
+    action = action_cat[act_id]
 
-    if __debug__:
-        print 'p(act|hand) = ', p_acts_hand
-        print 'p(act|eyes) = ', p_acts_eye
-        print 'p(action)   = ', p_acts
-        print 'action = ', action
+    # if __debug__:
+    #     print 'p(act|hand) = ', p_acts_hand
+    #     print 'p(act|eyes) = ', p_acts_eye
+    #     print 'p(action)   = ', p_acts
+    #     print 'action = ', action
 
-    return action
+    return act_id
 
 
 def person_callback(data):
@@ -177,62 +177,42 @@ def person_callback(data):
     :param data.image_w = 320, data.image_h = 480
     :return: action
     """
-    person_list = []  # a list of 2D array
-    head_chest_range = 20  # distance threshold btw joint[0] and joint[1]
 
-    for idx, person in enumerate(data.persons):
-        joints = np.ones((part_num, 2), dtype=np.int) * -1
-        for i in range(len(data.persons[idx].body_part)):
-            part = data.persons[idx].body_part[i]
-            # Transform the joint points back to the position on the image
-            joints[part.part_id, 0] = part.x * data.image_w
-            joints[part.part_id, 1] = part.y * data.image_h
+    try:
+        img_stitch = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching', Image, timeout=10), "bgr8")
 
-        # filtering person who is too far or no head
-        if np.all(joints[0] > 0) and (np.all(joints[16] > 0) or np.all(joints[17] > 0)):  # person has nose and one ear
-            if np.all(joints[1] > 0):  # person has chest
-                if norm(joints[0] - joints[1]) > head_chest_range:  # filtering person who is too far
-                    person_list.append(joints)
+    except rospy.exceptions.ROSException:
+        rospy.logerr("Error when fetching img_stitching.")
+        return
 
-            elif np.all(joints[2] > 0):
-                if norm(joints[0] - joints[2]) > head_chest_range:  # filtering person who is too far
-                    person_list.append(joints)
+    person_list = get_people_joints(data)
 
-            elif np.all(joints[5] > 0):
-                if norm(joints[0] - joints[5]) > head_chest_range:  # filtering person who is too far
-                    person_list.append(joints)
+    for joints in person_list:
+        # human identification
+        human_result = identify_single_human(img_stitch, joints, human_info, None)
 
-    for idx, joints in enumerate(person_list):
         hand_obj_list, eye_obj_list, hand_eye = hand_eye_obj(joints)
-        action = get_action(hand_obj_list, eye_obj_list, hand_eye)
+        action_id = get_action(hand_obj_list, eye_obj_list, hand_eye)
+        print 'action_id = ', action_id
+
+        if human_result is not None:
+
+            if human_result.action != action_id:
+                human_result.action = int(action_id)
+
+            print 'human type = ', type(human_result)
+            store_human_info(human_result)
 
     return
-
-
-def load_human_info(human_info_dir='~/catkin_ws/src/thesis/human_info/'):
-    """
-    load human info for human identification.
-    :return: A list of stored human beings.
-    """
-
-    yaml_list = os.listdir(human_info_dir)
-    print 'Current human in dataset: ', yaml_list
-
-    h_list = []
-    for f in yaml_list:
-        temp = yaml.load(open(human_info_dir + f))
-        print type(temp)
-
-        human_msg = message_converter.convert_dictionary_to_ros_message('thesis/Human', temp)
-        h_list.append(human_msg)
-
-    return h_list
 
 
 if __name__ == '__main__':
 
     # global const for action recognition
-    config_dir = rospkg.RosPack().get_path('thesis') + '/config/'
+    pkg_dir = rospkg.RosPack().get_path('thesis')
+    config_dir = pkg_dir + '/config/'
+    human_info_dir = rospkg.RosPack().get_path('thesis') + '/human_info/'
+
     hand_acts = pd.read_csv(config_dir + 'hand_actions.csv', sep=',')  # DataFrame
     eyes_acts = pd.read_csv(config_dir + 'eyes_actions.csv', sep=',')  # DataFrame
     eye_hand_acts = pd.read_csv(config_dir + 'eyes_hand.csv', sep=',')  # DataFrame
@@ -243,7 +223,8 @@ if __name__ == '__main__':
     part_num = 18
 
     # for human identification
-    human_list = load_human_info()
+    cv_bridge = CvBridge()
+    human_info = load_human_info(human_info_dir)
 
     rospy.init_node('action_recognition', log_level=rospy.INFO)
     rospy.loginfo('action_reg start!')
