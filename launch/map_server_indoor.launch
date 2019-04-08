@@ -1,0 +1,4 @@
+<launch>
+  <arg name="map" default="$(find thesis)/map/indoor3.yaml"/>
+  <node pkg="map_server" type="map_server" name="map_server" args="$(arg map)"/>
+</launch>

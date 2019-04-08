@@ -7,9 +7,6 @@ Input: images from both top and bottom camera from Pepper
 
 import os
 import sys
-import numpy as np
-import cv2
-import time
 
 from threading import Lock
 import rospy
@@ -43,14 +40,10 @@ def humans_to_msg(humans):
 
 
 def callback_image(data):
-    if rospy.get_param('openpose_flag', False):
-        fps_time = time.time()
-        bottom_msg = rospy.wait_for_message('/naoqi_driver_node/camera/bottom/image_raw', Image)
+    if rospy.get_param('use_openpose', True):
 
         try:
-            cv_front = cv_bridge.imgmsg_to_cv2(data, "bgr8")
-            cv_bottom = cv_bridge.imgmsg_to_cv2(bottom_msg, "bgr8")
-            cv_image = np.append(cv_front, cv_bottom, axis=0)
+            cv_image = cv_bridge.imgmsg_to_cv2(data, "bgr8")
 
         except CvBridgeError as err:
             rospy.logerr('[tf-pose-estimation] Converting Image Error. ' + str(err))
@@ -65,9 +58,6 @@ def callback_image(data):
 
             # draw
             pose_image = TfPoseEstimator.draw_humans(cv_image, humans, imgcopy=False)
-            cv2.putText(pose_image, "FPS: %f" % (1.0 / (time.time() - fps_time)),
-                        (10, 10),  cv2.FONT_HERSHEY_SIMPLEX, 0.5,
-                        (0, 255, 0), 2)
             pub_img.publish(cv_bridge.cv2_to_imgmsg(pose_image, 'bgr8'))
 
         finally:
@@ -84,11 +74,11 @@ def callback_image(data):
 
 
 if __name__ == '__main__':
-    rospy.loginfo('initialization+')
+    rospy.loginfo('Openpose on Pepper')
     rospy.init_node('TfPoseEstimatorROS', anonymous=True, log_level=rospy.INFO)
 
     # parameters
-    image_topic = rospy.get_param('~camera', '/naoqi_driver_node/camera/front/image_raw')
+    image_topic = rospy.get_param('~camera', '/thesis/img_stitching')
     model = rospy.get_param('~model', 'mobilenet_thin')  # cmu
 
     resolution = rospy.get_param('~resolution', '320x240')  # w x h
@@ -114,8 +104,8 @@ if __name__ == '__main__':
     cv_bridge = CvBridge()
 
     rospy.Subscriber(image_topic, Image, callback_image, queue_size=1, buff_size=2**24)
-    pub_pose = rospy.Publisher('/robot_project/human_pose', Persons, queue_size=1)
-    pub_img = rospy.Publisher('/robot_project/pose_visualization', Image, queue_size=1)
+    pub_pose = rospy.Publisher('/thesis/human_pose', Persons, queue_size=1)
+    pub_img = rospy.Publisher('/thesis/pose_visualization', Image, queue_size=1)
 
     rospy.loginfo('start+')
     rospy.spin()

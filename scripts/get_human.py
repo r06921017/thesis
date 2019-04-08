@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 """
-This is for human detection on Pepper
+This is for human localization on Pepper with image stitching, ignoring obj_buffer in the code.
 """
 
 import rospy
@@ -149,7 +149,9 @@ def bd_callback(data):
     for obj in data.bounding_boxes:
 
         if obj.Class == 'person':
-            bound_depth_img = np.copy(depth_img[obj.ymin:obj.ymax, obj.xmin:obj.xmax])
+
+            human_ymax = cam_height if obj.ymax > cam_height else obj.ymax
+            bound_depth_img = np.copy(depth_img[obj.ymin:human_ymax, obj.xmin:obj.xmax])
             bound_depth_img[bound_depth_img > 5000] = 5000  # max range = 5m
 
             # slide_width = np.min([bound_depth_img.shape[0], bound_depth_img.shape[1]]) // 4  # for object
@@ -159,6 +161,11 @@ def bd_callback(data):
             sxmax = bound_depth_img.shape[1] // 2 + slide_width // 2
             symin = bound_depth_img.shape[0] // 2 - slide_width // 2
             symax = bound_depth_img.shape[0] // 2 + slide_width // 2
+
+            if symax > cam_height:
+                offset = np.abs(symax - cam_height)
+                symax -= offset
+                symin -= offset
 
             search_box = bound_depth_img[symin:symax, sxmin:sxmax]
             depth_val = np.mean(search_box)
@@ -193,8 +200,8 @@ def bd_callback(data):
                 if perturbation < (0.22 * temp_obj.x + 0.01 * temp_obj.y):  # unit: meter
                     obj_buffer = temp_obj
 
-            # draw_map(temp_obj.x, temp_obj.y, temp_obj.Class, temp_map, robot_pose_offset)
-            draw_map(obj_buffer.x, obj_buffer.y, obj_buffer.Class, temp_map, robot_pose_offset)
+            draw_map(temp_obj.x, temp_obj.y, temp_obj.Class, temp_map, robot_pose_offset)
+            # draw_map(obj_buffer.x, obj_buffer.y, obj_buffer.Class, temp_map, robot_pose_offset)
             obj_list.append(obj_buffer)  # record all the object, not for single human detection
 
             # Convert points to map frame
@@ -202,6 +209,7 @@ def bd_callback(data):
             glob_obj_pose.Class = obj_buffer.Class
             glob_obj_pose.x, glob_obj_pose.y = camera2pose(depth_val, obj_pixel_x, obj_pixel_y,
                                                            tf_listener, "CameraTop_frame", "map")
+
             glob_obj_list.append(glob_obj_pose)
 
             # set human_detected is True
@@ -248,15 +256,13 @@ if __name__ == '__main__':
     tf_listener = tf.TransformListener()
     depth_topic = '/naoqi_driver_node/camera/depth/image_raw'  # for pepper
     camera_info_topic = '/naoqi_driver_node/camera/front/camera_info'  # for pepper
-    # depth_topic = '/camera/depth_registered/image_raw'  # for kinetic v1
-    # camera_info_topic = '/camera/rgb/camera_info'  # for kinetic v1
 
     if not rospy.has_param("human_detected"):
         rospy.set_param("human_detected", False)
 
     # Camera info subscribe once
     fx, fy, cx, cy, cam_width, cam_height = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
-    cam_info_sub = rospy.Subscriber(camera_info_topic, CameraInfo, get_cam_info)
+    cam_info_sub = rospy.Subscriber(camera_info_topic, CameraInfo, get_cam_info)  # only subscribe once
 
     obj_pose_array = ObjPoseArray()
     cv_bridge = CvBridge()
@@ -268,10 +274,10 @@ if __name__ == '__main__':
     rospy.wait_for_message(depth_topic, Image, timeout=30)
 
     # Publisher
-    depth_box_pub = rospy.Publisher("/get_human/depth_box", Image, queue_size=1)
-    temp_map_pub = rospy.Publisher("/get_human/temp_map", Image, queue_size=1)
-    obj_pose_pub = rospy.Publisher("/get_human/human_position", ObjPoseArray, queue_size=10)
-    obj_mark_pub = rospy.Publisher("/get_human/human_marker", Marker, queue_size=1)
+    depth_box_pub = rospy.Publisher("/thesis/depth_box", Image, queue_size=1)
+    temp_map_pub = rospy.Publisher("/thesis/robot_human_location", Image, queue_size=1)
+    obj_pose_pub = rospy.Publisher("/thesis/human_location", ObjPoseArray, queue_size=10)
+    obj_mark_pub = rospy.Publisher("/thesis/human_marker", Marker, queue_size=1)
 
     rospy.Subscriber("/darknet_ros/bounding_boxes", BoundingBoxes, bd_callback, queue_size=1)
 
@@ -282,7 +288,6 @@ if __name__ == '__main__':
     while not rospy.is_shutdown():
         try:
             rate.sleep()
-            rospy.spin()
 
         except rospy.ROSInterruptException:
-            rospy.loginfo('Shut down get human ...')
+            rospy.loginfo('Shut down get_human ...')
