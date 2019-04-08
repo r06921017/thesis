@@ -58,6 +58,7 @@ add_message_files(
   HumanArray.msg
   Schedule.msg
   ScheduleArray.msg
+  Instruction.msg
 )
 
 ## Generate services in the 'srv' folder
