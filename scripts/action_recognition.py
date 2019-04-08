@@ -132,22 +132,15 @@ def get_action(hand_obj_list, eye_obj_list, hand_eye):
     :param hand_obj_list: list of objects around hands
     :param eye_obj_list: list of objects eyes look at
     :param hand_eye: true if human looks at hands
-    :return: action probability, normalized np.array, shape=(action_num,)
+    :return: index with max action probability
     """
     p_acts_hand = np.zeros(action_num, np.float)  # shape = (action_num,)
     p_acts_eye = np.zeros(action_num, np.float)  # shape = (action_num,)
 
     for obj in hand_obj_list:
-        # print '--- hand object list ---'
-        # print 'object = ', obj.Class, ' ', type(obj.Class)
-        # print 'obj_act = ', hand_acts.loc[obj.Class, :].values
-        # print 'p_obj = ', obj.probability
         p_acts_hand += prob_norm(hand_acts.loc[obj.Class, :].values) * obj.probability
 
     for obj in eye_obj_list:
-        # print '--- eye object list ---'
-        # print 'obj_act = ', prob_norm(hand_acts.loc[obj.Class, :].values)
-        # print 'p_obj = ', obj.probability
         p_acts_eye += prob_norm(eyes_acts.loc[obj.Class, :].values) * obj.probability
 
     if np.sum(p_acts_hand) == 0.:
@@ -161,9 +154,9 @@ def get_action(hand_obj_list, eye_obj_list, hand_eye):
 
     p_acts = prob_norm(p_acts_hand + p_acts_eye * 1.2 + p_eye_hand * hand_eye)
     act_id = np.argmax(p_acts) if np.max(p_acts) > 0.25 else -1
-    action = action_cat[act_id]
 
     # if __debug__:
+    #     action = action_cat[act_id]
     #     print 'p(act|hand) = ', p_acts_hand
     #     print 'p(act|eyes) = ', p_acts_eye
     #     print 'p(action)   = ', p_acts
@@ -196,18 +189,20 @@ def person_callback(data):
         print 'action_id = ', action_id
 
         if human_result is not None:
-
+            # Add action to human
             if human_result.action != action_id:
                 human_result.action = int(action_id)
 
-            print 'human type = ', type(human_result)
+            # Add location to human if exists
+            if rospy.has_param('/thesis/pepper_location'):
+                human_result.location = rospy.get_param('/thesis/pepper_location')
+
             store_human_info(human_result)
 
     return
 
 
 if __name__ == '__main__':
-
     # global const for action recognition
     pkg_dir = rospkg.RosPack().get_path('thesis')
     config_dir = pkg_dir + '/config/'

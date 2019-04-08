@@ -152,19 +152,10 @@ def identify_single_human(img, joints, h_info, j_features):
         j_features = [1, 2, 5]
 
     colors = get_joint_color(img, joints, j_features)
-    # if __debug__:
-    #     print 'current color'
-    #     print type(colors)
-    #     print colors
-    #     show_color(colors)
-
     temp_sim = np.zeros(len(h_info))
 
     for i, human in enumerate(h_info):
         temp_sim[i] = color_dist(colors, human.shirt_color)
-
-    # if __debug__:
-    #     print 'similarity for person = ', temp_sim
 
     human_result = h_info[np.argmin(temp_sim)] if np.min(temp_sim) < 150. else None
 
@@ -255,9 +246,6 @@ def greeting_cb():
 
 
 def store_human_info(in_human):
-    # if __debug__:
-    #   print 'in_human shirt color type = ', type(in_human.shirt_color)
-
     temp_human = Human(name=in_human.name,
                        ip=in_human.ip,
                        shirt_color=in_human.shirt_color.tolist(),
