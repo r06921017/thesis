@@ -1,3 +1,4 @@
+int8 id
 bool type
 float32 duration
 int8 function
