@@ -1,6 +1,7 @@
 int8 id
 bool type
 float32 duration
+int8 location
 int8 function
 string source
 int8 status

@@ -194,7 +194,7 @@ def person_callback(data):
                 human_result.action = int(action_id)
 
             # Add location to human if exists
-            if rospy.has_param('/thesis/pepper_location'):
+            if rospy.has_param('/thesis/pepper_location'):  # type: int
                 human_result.location = rospy.get_param('/thesis/pepper_location')
 
             store_human_info(human_result)
