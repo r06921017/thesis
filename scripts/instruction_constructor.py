@@ -16,7 +16,7 @@ if __name__ == '__main__':
     # initialize parameters
     loc_num = 6
     max_num = 10  # maximum number for simultaneous instructions in the period
-    freq = 0.1
+    freq = 0.1  # 10 seconds
 
     rate = rospy.Rate(freq)
     while not rospy.is_shutdown():

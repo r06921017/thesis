@@ -23,6 +23,7 @@ import numpy as np
 import pandas as pd
 from numpy.linalg import norm
 import yaml
+import time
 
 
 def get_ip(data):
@@ -193,6 +194,7 @@ def show_color(colors):
 
 
 def greeting_cb():
+    # Get human name
     tts_service.say('Hi, I am Pepper. Nice to meet you. What is your name?')
     print 'What is your name?'
     voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
@@ -200,9 +202,42 @@ def greeting_cb():
 
     ip_num = get_ip(voice_msg)
     name = voice_msg.texts[0].split(' ')[0]
-
     print 'ip = ', ip_num
     print 'name = ', name
+
+    # Get the age of human
+    age_flag = True
+    temp_age = 0
+    while age_flag:
+        tts_service.say('How old are you?')
+        voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
+        print 'Receive from phone: ', voice_msg
+        _age = voice_msg.texts[0].split(' ')[0]  # type: VoiceMessage
+
+        try:
+            temp_age = int(_age)
+            age_flag = False
+
+        except ValueError:
+            print 'Fail to recognize age from voice.'
+            tts_service.say('Sorry, please try again.')
+            time.sleep(1)
+            continue
+
+    # Get the gender of human
+    while True:
+        tts_service.say('Are you man or lady?')
+        voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
+        print 'Receive from phone: ', voice_msg
+
+        if voice_msg.texts[0].split(' ')[0] == 'man':
+            gen = 1
+            break
+        elif voice_msg.texts[0].split(' ')[0] == 'lady':
+            gen = 0
+            break
+        else:
+            tts_service.say('Sorry, please try again.')
 
     try:
         img_stitch = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching', Image, timeout=10), "bgr8")
@@ -236,7 +271,7 @@ def greeting_cb():
         show_color(colors)
 
         # Create Human message and store in yaml format
-        human = Human(name=name, ip=ip_num, shirt_color=colors, location='greet', action=get_action_len())
+        human = Human(name=name, ip=ip_num, gender=gen, age=temp_age, shirt_color=colors, location='greet', action=get_action_len())
         store_human_info(human)
 
         respond = 'I got it, nice to meet you ' + name

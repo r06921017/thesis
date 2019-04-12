@@ -1,5 +1,7 @@
 string name
 string ip
+bool gender
+int8 age
 int8[] shirt_color
 int8 location
 int8 action
