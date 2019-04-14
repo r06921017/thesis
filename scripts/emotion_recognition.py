@@ -7,6 +7,9 @@ import time
 
 
 def emotion_recognition():
+    """
+    :return: positive, neutral, negative, unknown
+    """
     tts_service.say("Fuck you, Charlie.")
     time.sleep(3)
     print 'emotion = ', mood_service.getEmotionalReaction()
