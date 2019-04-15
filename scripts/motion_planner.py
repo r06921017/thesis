@@ -1,51 +1,24 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Make robot move from node to node.
 """
 
-import rospy
-import rosnode
-import numpy as np
-from numpy.linalg import norm
-import qi
-from nav_msgs.srv import GetPlan
-from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
-from cv_bridge import CvBridge
 import subprocess
+from math import atan2
+
 import actionlib
-from actionlib_msgs.msg import *
-from math import atan2, pow, sqrt
-from random import sample
 import dynamic_reconfigure.client
-from human_id import *
-from thesis.msg import *
-from geometry_msgs.msg import Pose, PoseStamped, PoseWithCovarianceStamped, Point, Quaternion, Twist
+import rosnode
+from actionlib_msgs.msg import *
+from genpy import Duration, Time
+from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist
+from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
+from nav_msgs.srv import GetPlan
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
-from naoqi_bridge_msgs.msg import JointAnglesWithSpeed
 
+from thesis.msg import *
+from typing import List, Union
 
-def isin_dest(rx, ry, ryaw, des_x, des_y, des_yaw):
-
-    if norm(rx-des_x, ry-des_y) < 0.5 and abs(float(ryaw - des_yaw)) < 0.3:
-        print 'is in destination'
-        return True
-    else:
-        print 'not in destination'
-        return False
-
-
-def motion_cb(data):
-    """
-    Navigation based on instructions
-    :param data: InstructionArray
-    :return: None
-    """
-    # move to destination from node to node
-    for ins in data:
-        simple_move_base(loc[ins.destination][0], loc[ins.destination][1], loc[ins.destination][2])
-
-    return
+from human_id import *
 
 
 def change_local_costmap_radius(inflation_radius):
@@ -129,17 +102,28 @@ def simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius=1.0, with_rotati
             within_time = run_movebase(sac, dest_x, dest_y, dest_yaw)
 
             if not within_time:
-                sac.cancel_goal()
+                shutdown(sac)
                 rospy.loginfo('Timed out achieving goal.')
 
             else:
                 state = sac.get_state()
                 if state == GoalStatus.SUCCEEDED:
                     rospy.loginfo('Goal succeed!')
+
                 else:
                     rospy.loginfo('Goal failed with error code:' + str(goal_states[state]))
+                    shutdown(sac)
                     inflation_radius -= 0.2
                     simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius, with_rotation_first)
+    return
+
+
+def shutdown(sac):
+    rospy.loginfo('Stopping the robot ...')
+    sac.cancle_goal()
+    rospy.sleep(2)
+    cmd_vel_pub.publish(Twist())
+    rospy.sleep(1)
     return
 
 
@@ -166,22 +150,89 @@ def run_movebase(sac, x, y, yaw):
     return within_time
 
 
-if __name__ == '__main__':
-    rospy.init_node('motion_planner', anonymous=True, log_level=rospy.loginfo)
+def isin_dest(rx, ry, ryaw, des_x, des_y, des_yaw):
 
-    office_x, office_y, office_yaw      = 0.716, -0.824,  1.927  # location: 0
-    bedroom_x, bedroom_y, bedroom_yaw   = 4.971, -0.005,  2.026  # 1
-    charge_x, charge_y, charge_yaw      = 5.024, -0.318, -2.935
-    alley_x, alley_y, alley_yaw         = 5.140, -3.713,  2.017
-    living_x, living_y, living_yaw      = 3.397, -5.461,  1.927
-    dining_x, dining_y, dining_yaw      = 6.258, -3.560,  1.353
+    if norm(rx-des_x, ry-des_y) < 0.5 and abs(float(ryaw - des_yaw)) < 0.3:
+        print 'is in destination'
+        return True
+    else:
+        print 'not in destination'
+        return False
+
+
+def get_function(instr):
+
+    if instr.function == 0:  # NOP
+        say_str = 'Hello ' + instr.target + ', what can I do for you?'
+        tts_service.say(say_str)
+
+    elif instr.function == 1:  # chat
+        say_str = 'Greetings, ' + instr.target + 'how do you do?'
+        tts_service.say(say_str)
+        voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
+        human = identify_voice(human_info, voice_msg)
+
+        if human is None:
+            greeting_cb()
+        else:
+            # human say: Thank you for chatting with me
+            tts_service.say('Well, I am glad to help.')
+
+    elif instr.function == 2:  # remind object
+        remind_obj()
+
+    elif instr.function == 8:  # emergency
+        tts_service.say('I will call Li-Pu for help.')
+        simple_move_base(emer_x, emer_y, emer_yaw)
+        say_str = 'Li-Pu, ' + instr.target + 'may need your help. Please be hurry!'
+        asr_service.say(say_str)
+        simple_move_base(loc[instr.destination][0], loc[instr.destination][1], loc[instr.destination][2])
+
+    return
+
+
+def remind_obj():
+
+    return
+
+
+def motion_cb(data):
+    """
+    Navigation based on instructions
+    :param data: InstructionArray
+    :return: None
+    """
+    # move to destination from node to node
+    for instr in data:
+        simple_move_base(loc[instr.destination][0], loc[instr.destination][1], loc[instr.destination][2])
+
+    return
+
+
+if __name__ == '__main__':
+    rospy.init_node('motion_planner', anonymous=True)
+
+    # global const for action recognition
+    pkg_dir = rospkg.RosPack().get_path('thesis')
+    config_dir = pkg_dir + '/config/'
+    human_info_dir = rospkg.RosPack().get_path('thesis') + '/human_info/'
+    human_info = load_human_info(human_info_dir)  # type: List[Human]
+
+    office_x, office_y, office_yaw = 0.716, -0.824,  1.927  # location: 0
+    bedroom_x, bedroom_y, bedroom_yaw = 4.971, -0.005,  2.026  # 1
+    charge_x, charge_y, charge_yaw = 5.024, -0.318, -2.935
+    alley_x, alley_y, alley_yaw = 5.140, -3.713,  2.017
+    living_x, living_y, living_yaw = 3.397, -5.461,  1.927
+    dining_x, dining_y, dining_yaw = 6.258, -3.560,  1.353
+    emer_x, emer_y, emer_yaw = 5.294, -3.869, -1.165  # emergency
 
     loc = [[office_x, office_y, office_yaw],
           [bedroom_x, bedroom_y, bedroom_yaw],
           [charge_x, charge_y, charge_yaw],
           [alley_x, alley_y, alley_yaw],
           [living_x, living_y, living_yaw],
-          [dining_x, dining_y, dining_yaw ]]
+          [dining_x, dining_y, dining_yaw],
+          [emer_x, emer_y, emer_yaw]]
 
     goal_states = ['PENDING', 'ACTIVE', 'PREEMPTED',
                    'SUCCEEDED', 'ABORTED', 'REJECTED',
@@ -190,18 +241,16 @@ if __name__ == '__main__':
 
     get_global_path = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
 
+    cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
     rospy.Subscriber('/thesis/instruction_buffer', InstructionArray, motion_cb, queue_size=1)
 
     # Naoqi setting
-    global pepper_ip
     if rospy.has_param("Pepper_ip"):
         pepper_ip = rospy.get_param("Pepper_ip")
     else:
         print 'Pepper_ip is not given'
         pepper_ip = '192.168.0.152'
     print 'Pepper_ip = ', pepper_ip
-
-    global motion_service, posture_service, tts_service
 
     session = qi.Session()
 
@@ -215,9 +264,8 @@ if __name__ == '__main__':
     motion_service = session.service("ALMotion")
     posture_service = session.service("ALRobotPosture")
     tts_service = session.service('ALTextToSpeech')
-    animation_player_service = session.service("ALAnimationPlayer")
+    tts_service.setLanguage('English')
     asr_service = session.service("ALAnimatedSpeech")
-
     # End Naoqi setting
 
     rospy.spin()

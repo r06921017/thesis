@@ -169,6 +169,28 @@ def identify_single_human(img, joints, h_info, j_features):
     return human_result
 
 
+def identify_voice(h_info, voice_msg):
+    """
+    Know who is talking.
+    :param h_info: list of stored human
+    :param voice_msg: message form Tablet
+    :return: Human()
+    """
+    if h_info is None:
+        h_info = load_human_info(rospkg.RosPack().get_path('thesis') + '/human_info/')
+
+    if voice_msg is None:
+        voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage, timeout=10)
+
+    voice_ip = get_ip(voice_msg)
+    for h in h_info:
+        if h.ip == voice_ip:
+            return h
+
+    print 'No human matched'
+    return None
+
+
 def show_color(colors):
     """
     Show the cloth color
