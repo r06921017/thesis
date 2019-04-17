@@ -24,6 +24,7 @@ import pandas as pd
 from numpy.linalg import norm
 import yaml
 import time
+import pickle
 
 
 def get_ip(data):
@@ -169,26 +170,31 @@ def identify_single_human(img, joints, h_info, j_features):
     return human_result
 
 
-def identify_voice(h_info, voice_msg):
+def identify_voice(ip_dict, voice_msg):
     """
     Know who is talking.
-    :param h_info: list of stored human
+    :param ip_dict: diction of Human() with ip asa index
     :param voice_msg: message form Tablet
     :return: Human()
     """
-    if h_info is None:
-        h_info = load_human_info(rospkg.RosPack().get_path('thesis') + '/human_info/')
+    if ip_dict is None:
+        h_dict = load_human_info2dict(rospkg.RosPack().get_path('thesis') + '/human_info/')
+        ip_dict = h_dict['ip']
 
     if voice_msg is None:
         voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage, timeout=10)
 
     voice_ip = get_ip(voice_msg)
-    for h in h_info:
-        if h.ip == voice_ip:
-            return h
 
-    print 'No human matched'
-    return None
+    return ip_dict.get(voice_ip, None)
+
+
+def get_human_from_name(name_dict, name):
+    if name_dict is None:
+        h_dict = load_human_info2dict(rospkg.RosPack().get_path('thesis') + '/human_info/')
+        name_dict = h_dict['name']
+
+    return name_dict.get(name, None)
 
 
 def show_color(colors):
@@ -295,6 +301,7 @@ def greeting_cb():
         # Create Human message and store in yaml format
         human = Human(name=name, ip=ip_num, gender=gen, age=temp_age, shirt_color=colors, location='greet', action=get_action_len())
         store_human_info(human)
+        update_human_info_dict(human)
 
         respond = 'I got it, nice to meet you ' + name
         as_service.say(respond)
@@ -303,6 +310,7 @@ def greeting_cb():
 
 
 def store_human_info(in_human):
+    human_info_dir = rospkg.RosPack().get_path('thesis') + '/human_info/'
     temp_human = Human(name=in_human.name,
                        ip=in_human.ip,
                        shirt_color=in_human.shirt_color.tolist(),
@@ -311,9 +319,33 @@ def store_human_info(in_human):
 
     human_dic = message_converter.convert_ros_message_to_dictionary(temp_human)  # transform into dictionary type
 
-    f_name = rospkg.RosPack().get_path('thesis') + '/human_info/' + in_human.name + '.yaml'  # type: str
+    f_name = human_info_dir + in_human.name + '.yaml'  # type: str
     with open(f_name, 'w') as f:
         yaml.dump(human_dic, f)
+
+    return
+
+
+def update_human_info_dict(in_human):
+    # Update human_info list and human_dict
+
+    human_info_dir = rospkg.RosPack().get_path('thesis') + '/human_info/'
+    if 'human_info.pkl' in os.listdir(human_info_dir):
+        h_list = load_human_info(human_info_dir)
+        h_list.append(in_human)
+        pickle.dump(h_list, 'human_info.pkl')
+
+        name_dict = dict()
+        ip_dict = dict()
+        h_dict = dict()
+        for h in h_list:
+            name_dict[h.name] = h
+            ip_dict[h.ip] = h
+
+        h_dict['name'] = name_dict
+        h_dict['ip'] = ip_dict
+
+        pickle.dump(h_dict, 'human_dict.pkl')
 
     return
 
@@ -324,23 +356,47 @@ def load_human_info(human_info_dir):
     :return: A list of stored human beings.
     """
 
-    yaml_list = os.listdir(human_info_dir)
-    print 'Current human in dataset: ', yaml_list
+    if 'human_info.pkl' in os.listdir(human_info_dir):
+        h_list = pickle.load('human_info.pkl')
 
-    h_list = []
-
-    if yaml_list is None:
-        print 'No human in robot memory.'
     else:
-        for f in yaml_list:
-            temp = yaml.load(open(human_info_dir + f))
-            temp_shirt_color = np.array(temp['shirt_color'])
-            human_msg = message_converter.convert_dictionary_to_ros_message('thesis/Human', temp)
-            human_msg.shirt_color = temp_shirt_color
+        yaml_list = os.listdir(human_info_dir)
+        print 'Current human in dataset: ', yaml_list
 
-            h_list.append(human_msg)
+        h_list = []
+
+        if yaml_list is None:
+            print 'No human in robot memory.'
+        else:
+            for f in yaml_list:
+                temp = yaml.load(open(human_info_dir + f))
+                temp_shirt_color = np.array(temp['shirt_color'])
+                human_msg = message_converter.convert_dictionary_to_ros_message('thesis/Human', temp)
+                human_msg.shirt_color = temp_shirt_color
+
+                h_list.append(human_msg)
+
+        pickle.dump(h_list, 'human_info.pkl')
 
     return h_list
+
+
+def load_human_info2dict(human_info_dir):
+    if 'human_dict.pkl' in os.listdir(human_info_dir):
+        human_dict = pickle.load('human_dict.pkl')
+    else:
+        h_list = load_human_info(human_info_dir)
+        name_dict = dict()
+        ip_dict = dict()
+        human_dict = dict()
+        for h in h_list:
+            name_dict[h.name] = h
+            ip_dict[h.ip] = h
+
+        human_dict['name'] = name_dict
+        human_dict['ip'] = ip_dict
+
+    return human_dict
 
 
 def get_action_len():

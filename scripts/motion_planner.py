@@ -2,21 +2,20 @@
 Make robot move from node to node.
 """
 
+import datetime
 import subprocess
 from math import atan2
 
 import actionlib
 import dynamic_reconfigure.client
 import rosnode
+from actionlib import SimpleActionClient
 from actionlib_msgs.msg import *
-from genpy import Duration, Time
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from nav_msgs.srv import GetPlan
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
-
 from thesis.msg import *
-from typing import List, Union
 
 from human_id import *
 
@@ -53,7 +52,6 @@ def get_cur_pos(pos_topic, t):
 
 
 def simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius=1.0, with_rotation_first=True):
-
     print 'inflation_radius = ', inflation_radius
 
     # robot is static
@@ -85,7 +83,7 @@ def simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius=1.0, with_rotati
             rospy.loginfo('move_base node succeed!')
 
             # Simple Action Client
-            sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)
+            sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)  # type: SimpleActionClient
 
             change_local_costmap_radius(inflation_radius)
 
@@ -151,8 +149,7 @@ def run_movebase(sac, x, y, yaw):
 
 
 def isin_dest(rx, ry, ryaw, des_x, des_y, des_yaw):
-
-    if norm(rx-des_x, ry-des_y) < 0.5 and abs(float(ryaw - des_yaw)) < 0.3:
+    if norm(rx - des_x, ry - des_y) < 0.5 and abs(float(ryaw - des_yaw)) < 0.3:
         print 'is in destination'
         return True
     else:
@@ -161,7 +158,6 @@ def isin_dest(rx, ry, ryaw, des_x, des_y, des_yaw):
 
 
 def get_function(instr):
-
     if instr.function == 0:  # NOP
         say_str = 'Hello ' + instr.target + ', what can I do for you?'
         tts_service.say(say_str)
@@ -170,16 +166,38 @@ def get_function(instr):
         say_str = 'Greetings, ' + instr.target + 'how do you do?'
         tts_service.say(say_str)
         voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
-        human = identify_voice(human_info, voice_msg)
+        human = identify_voice(human_dict['ip'], voice_msg)
 
-        if human is None:
+        if human is None:  # add new person into human_info
             greeting_cb()
         else:
             # human say: Thank you for chatting with me
             tts_service.say('Well, I am glad to help.')
 
     elif instr.function == 2:  # remind object
-        remind_obj()
+        obj_loc = remind_obj(instr.target)  # list of locations of given objects
+        if obj_loc is None:  # no locations founds
+            temp_str = 'I forget where ' + instr.target + 'is. I will find it later.'
+            tts_service.say(temp_str)
+            # TODO: add find object function
+
+    elif instr.function == 3:  # remind schedule
+        target_human = get_human_from_name(name_dict=human_dict['name'], name=instr.target)
+        cur_weekday = datetime.datetime.today().weekday()
+        cur_hour = datetime.datetime.now().hour
+        # cur_min = datetime.datetime.now().minute
+        sch_list = []
+        for sch in target_human.schedules:
+            if sch.start_day < cur_weekday < sch.end_day and cur_hour < sch.start_hour:
+                sch_str = sch.activity + 'at ' + sch.start_hour + ', '
+                sch_list.append(sch_str)
+
+        # formulate as sentence for robot
+        temp_str = 'You need to '
+        for i, sch_str in enumerate(sch_list):
+            if i == len(sch_list) - 1:
+                temp_str += 'and '
+            temp_str += sch_str
 
     elif instr.function == 8:  # emergency
         tts_service.say('I will call Li-Pu for help.')
@@ -191,9 +209,25 @@ def get_function(instr):
     return
 
 
-def remind_obj():
+def remind_obj(in_obj):
+    if 'obj.pkl' in os.listdir('../config'):
+        obj = pickle.load('obj.pkl')
 
-    return
+    else:
+        office_obj = {'tvmonitor', 'book', 'chair', 'laptop', 'mouse', 'cell phone'}
+        bedroom_obj = {'bed'}
+        livingroom_obj = {'sofa', 'book', 'pottedplant', 'tvmonitor', 'remote'}
+        diningroom_obj = {'diningtable', 'toaster', 'fork', 'bowl', 'spoon', 'knife', 'cup', 'bowl', 'chair'}
+
+        obj = {'office': office_obj, 'bedroom': bedroom_obj, 'livingroom': livingroom_obj, 'diningroom': diningroom_obj}
+        pickle.dump(obj, '../config/obj.pkl')
+
+    out_loc = []
+    for key in obj.keys():
+        if in_obj in obj[key]:
+            out_loc.append(key)
+
+    return out_loc
 
 
 def motion_cb(data):
@@ -215,24 +249,25 @@ if __name__ == '__main__':
     # global const for action recognition
     pkg_dir = rospkg.RosPack().get_path('thesis')
     config_dir = pkg_dir + '/config/'
-    human_info_dir = rospkg.RosPack().get_path('thesis') + '/human_info/'
-    human_info = load_human_info(human_info_dir)  # type: List[Human]
+    human_info_dir = pkg_dir + '/human_info/'
 
-    office_x, office_y, office_yaw = 0.716, -0.824,  1.927  # location: 0
-    bedroom_x, bedroom_y, bedroom_yaw = 4.971, -0.005,  2.026  # 1
+    human_dict = load_human_info2dict(human_info_dir)
+
+    office_x, office_y, office_yaw = 0.716, -0.824, 1.927  # location: 0
+    bedroom_x, bedroom_y, bedroom_yaw = 4.971, -0.005, 2.026  # 1
     charge_x, charge_y, charge_yaw = 5.024, -0.318, -2.935
-    alley_x, alley_y, alley_yaw = 5.140, -3.713,  2.017
-    living_x, living_y, living_yaw = 3.397, -5.461,  1.927
-    dining_x, dining_y, dining_yaw = 6.258, -3.560,  1.353
+    alley_x, alley_y, alley_yaw = 5.140, -3.713, 2.017
+    living_x, living_y, living_yaw = 3.397, -5.461, 1.927
+    dining_x, dining_y, dining_yaw = 6.258, -3.560, 1.353
     emer_x, emer_y, emer_yaw = 5.294, -3.869, -1.165  # emergency
 
     loc = [[office_x, office_y, office_yaw],
-          [bedroom_x, bedroom_y, bedroom_yaw],
-          [charge_x, charge_y, charge_yaw],
-          [alley_x, alley_y, alley_yaw],
-          [living_x, living_y, living_yaw],
-          [dining_x, dining_y, dining_yaw],
-          [emer_x, emer_y, emer_yaw]]
+           [bedroom_x, bedroom_y, bedroom_yaw],
+           [charge_x, charge_y, charge_yaw],
+           [alley_x, alley_y, alley_yaw],
+           [living_x, living_y, living_yaw],
+           [dining_x, dining_y, dining_yaw],
+           [emer_x, emer_y, emer_yaw]]
 
     goal_states = ['PENDING', 'ACTIVE', 'PREEMPTED',
                    'SUCCEEDED', 'ABORTED', 'REJECTED',
