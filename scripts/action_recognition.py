@@ -171,35 +171,45 @@ def person_callback(data):
     :return: action
     """
 
-    try:
-        img_stitch = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching', Image, timeout=10), "bgr8")
+    if rospy.get_param('/thesis/action_on', False):
+        try:
+            img_stitch = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching', Image, timeout=10), "bgr8")
 
-    except rospy.exceptions.ROSException:
-        rospy.logerr("Error when fetching img_stitching.")
-        return
+        except rospy.exceptions.ROSException:
+            rospy.logerr("Error when fetching img_stitching.")
+            return
 
-    person_list = get_people_joints(data)
+        person_list = get_people_joints(data)
 
-    for joints in person_list:
-        # human identification
-        human_result = identify_single_human(img_stitch, joints, human_info, None)
+        for joints in person_list:
+            # human identification
+            human_result = identify_single_human(img_stitch, joints, human_info, None)
 
-        hand_obj_list, eye_obj_list, hand_eye = hand_eye_obj(joints)
-        action_id = get_action(hand_obj_list, eye_obj_list, hand_eye)
-        print 'action_id = ', action_id
+            hand_obj_list, eye_obj_list, hand_eye = hand_eye_obj(joints)
+            action_id = get_action(hand_obj_list, eye_obj_list, hand_eye)
+            print 'action_id = ', action_id
 
-        if human_result is not None:
-            # Add action to human
-            if human_result.action != action_id:
-                human_result.action = int(action_id)
+            if human_result is not None:
+                # Add action to human
+                if human_result.action != action_id:
+                    human_result.action = int(action_id)
 
-            # Add location to human if exists
-            if rospy.has_param('/thesis/pepper_location'):  # type: int
-                human_result.location = rospy.get_param('/thesis/pepper_location')
+                # Add location to human if exists
+                if rospy.has_param('/thesis/pepper_location'):  # type: int
+                    human_result.location = rospy.get_param('/thesis/pepper_location')
 
-            store_human_info(human_result)
+                store_human_info(human_result)
 
     return
+
+
+def get_action_cat():
+    if rospy.has_param('action_cat'):
+        return rospy.get_param('action_cat')
+    else:
+        h_acts = pd.read_csv(rospkg.RosPack().get_path('thesis') + '/config/hand_actions.csv', sep=',')  # DataFrame
+        rospy.set_param('action_cat', action_cat)
+        return h_acts.columns.to_list()
 
 
 if __name__ == '__main__':
@@ -216,6 +226,7 @@ if __name__ == '__main__':
     action_cat = hand_acts.columns.to_list()  # category of actions
     action_num = len(action_cat)
     part_num = 18
+    rospy.set_param('action_cat', action_cat)
 
     # for human identification
     cv_bridge = CvBridge()

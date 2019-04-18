@@ -18,6 +18,7 @@ from tf.transformations import euler_from_quaternion, quaternion_from_euler
 from thesis.msg import *
 
 from human_id import *
+from action_recognition import *
 
 
 def change_local_costmap_radius(inflation_radius):
@@ -158,6 +159,8 @@ def isin_dest(rx, ry, ryaw, des_x, des_y, des_yaw):
 
 
 def get_function(instr):
+    start_time = time.time()
+
     if instr.function == 0:  # NOP
         say_str = 'Hello ' + instr.target + ', what can I do for you?'
         tts_service.say(say_str)
@@ -174,14 +177,26 @@ def get_function(instr):
             # human say: Thank you for chatting with me
             tts_service.say('Well, I am glad to help.')
 
-    elif instr.function == 2:  # remind object
+    elif instr.function == 2:  # encourage
+        tts_service.say('What happened?')
+        voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
+        if 'break' and 'up' in voice_msg.texts[0].split(' '):
+            asr_service.say('Cheer up! you deserve a better one.')
+            time.sleep(0.5)
+            tts_service.say('I will be with you whenever you are down.')
+            voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)
+            if 'Thank' or 'thank' or 'Thanks' in voice_msg.texts[0].split(' '):
+                asr_service.say('No problem, my friend.')
+                posture_service('StandInit', 0.6)
+
+    elif instr.function == 3:  # remind object
         obj_loc = remind_obj(instr.target)  # list of locations of given objects
         if obj_loc is None:  # no locations founds
             temp_str = 'I forget where ' + instr.target + 'is. I will find it later.'
             tts_service.say(temp_str)
             # TODO: add find object function
 
-    elif instr.function == 3:  # remind schedule
+    elif instr.function == 4:  # remind schedule
         target_human = get_human_from_name(name_dict=human_dict['name'], name=instr.target)
         cur_weekday = datetime.datetime.today().weekday()
         cur_hour = datetime.datetime.now().hour
@@ -199,12 +214,35 @@ def get_function(instr):
                 temp_str += 'and '
             temp_str += sch_str
 
-    elif instr.function == 8:  # emergency
+    elif instr.function == 5:  # check human
+        rospy.set_param('/thesis/action_on', True)
+        time.sleep(5)
+        target_human = get_human_from_name(name_dict=human_dict['name'], name=instr.target)
+        temp_str = target_human.name + ' is ' + action_cat[target_human.action]
+        tts_service.say(temp_str)
+
+    elif instr.function == 6:  # charge
+        tts_service.say('I need to charge, can anyone help me, please?')
+        time.sleep(60)  # wait to charge 10 seconds
+
+    elif instr.function == 7:  # play videos
+        tts_service.say('Would you like some music?')
+        tabletService.playVideo("https://www.youtube.com/watch?v=lmNHeu7DB28")
+        time.sleep(instr.duration - (time.time() - start_time) - 0.5)
+
+    elif instr.function == 8:  # play games
+        tts_service.say('Let\'s play a game!')
+        time.sleep(instr.duration - (time.time() - start_time) - 0.5)
+
+    elif instr.function == 9:  # emergency
         tts_service.say('I will call Li-Pu for help.')
         simple_move_base(emer_x, emer_y, emer_yaw)
         say_str = 'Li-Pu, ' + instr.target + 'may need your help. Please be hurry!'
         asr_service.say(say_str)
         simple_move_base(loc[instr.destination][0], loc[instr.destination][1], loc[instr.destination][2])
+
+    if instr.duration - (time.time() - start_time) > 0.:
+        time.sleep(instr.duration - (time.time() - start_time))
 
     return
 
@@ -239,6 +277,7 @@ def motion_cb(data):
     # move to destination from node to node
     for instr in data:
         simple_move_base(loc[instr.destination][0], loc[instr.destination][1], loc[instr.destination][2])
+        rospy.set_param('/thesis/pepper_location', instr.destination)
 
     return
 
@@ -252,6 +291,7 @@ if __name__ == '__main__':
     human_info_dir = pkg_dir + '/human_info/'
 
     human_dict = load_human_info2dict(human_info_dir)
+    action_cat = get_action_cat()
 
     office_x, office_y, office_yaw = 0.716, -0.824, 1.927  # location: 0
     bedroom_x, bedroom_y, bedroom_yaw = 4.971, -0.005, 2.026  # 1
@@ -301,6 +341,9 @@ if __name__ == '__main__':
     tts_service = session.service('ALTextToSpeech')
     tts_service.setLanguage('English')
     asr_service = session.service("ALAnimatedSpeech")
+    tabletService = session.service("ALTabletService")
+    tabletService.enableWifi()  # ensure that the tablet wifi is enable
     # End Naoqi setting
 
+    rospy.loginfo('Start Motion Planner !')
     rospy.spin()

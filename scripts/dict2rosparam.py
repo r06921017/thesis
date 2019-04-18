@@ -3,7 +3,7 @@
 """
 transfer List of Human() into dictionary structure and set to ros_param
 """
-from human_id import *
+from action_recognition import *
 
 
 def load_human_info2dict(human_info_dir):
@@ -28,6 +28,5 @@ def load_human_info2dict(human_info_dir):
 
 if __name__ == '__main__':
     rospy.init_node('test')
-
     h_info_dir = rospkg.RosPack().get_path('thesis') + '/human_info/'
     temp_dict = load_human_info2dict(h_info_dir)
