@@ -218,6 +218,13 @@ def get_function(instr):
         rospy.set_param('/thesis/action_on', True)
         time.sleep(5)
         target_human = get_human_from_name(name_dict=human_dict['name'], name=instr.target)
+
+        if instr.type == 0:  # request from human
+            source_human = get_human_from_name(name_dict=human_dict['name'], name=instr.source)
+            simple_move_base(loc[source_human.location][0],
+                             loc[source_human.location][1],
+                             loc[source_human.location][2])
+
         temp_str = target_human.name + ' is ' + action_cat[target_human.action]
         tts_service.say(temp_str)
 
@@ -235,7 +242,7 @@ def get_function(instr):
         time.sleep(instr.duration - (time.time() - start_time) - 0.5)
 
     elif instr.function == 9:  # emergency
-        tts_service.say('I will call Li-Pu for help.')
+        tts_service.say('Emergency. I will call Li-Pu for help.')
         simple_move_base(emer_x, emer_y, emer_yaw)
         say_str = 'Li-Pu, ' + instr.target + 'may need your help. Please be hurry!'
         asr_service.say(say_str)
