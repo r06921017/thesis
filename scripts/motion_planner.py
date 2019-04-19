@@ -1,3 +1,6 @@
+#!/usr/bin/env python
+# -*- coding: UTF-8 -*-
+
 """
 Make robot move from node to node.
 """
@@ -182,19 +185,18 @@ def get_function(instr):
         voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
         if 'break' and 'up' in voice_msg.texts[0].split(' '):
             asr_service.say('Cheer up! you deserve a better one.')
-            time.sleep(0.5)
+            time.sleep(0.5 * step_t)
             tts_service.say('I will be with you whenever you are down.')
             voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)
             if 'Thank' or 'thank' or 'Thanks' in voice_msg.texts[0].split(' '):
                 asr_service.say('No problem, my friend.')
-                posture_service('StandInit', 0.6)
+                posture_service('StandInit', 0.6 * step_t)
 
     elif instr.function == 3:  # remind object
         obj_loc = remind_obj(instr.target)  # list of locations of given objects
-        if obj_loc is None:  # no locations founds
-            temp_str = 'I forget where ' + instr.target + 'is. I will find it later.'
+        if obj_loc is None and instr.type == 0:  # no locations founds
+            temp_str = 'I do not know where ' + instr.target + 'is.'
             tts_service.say(temp_str)
-            # TODO: add find object function
 
     elif instr.function == 4:  # remind schedule
         target_human = get_human_from_name(name_dict=human_dict['name'], name=instr.target)
@@ -207,16 +209,19 @@ def get_function(instr):
                 sch_str = sch.activity + 'at ' + sch.start_hour + ', '
                 sch_list.append(sch_str)
 
-        # formulate as sentence for robot
-        temp_str = 'You need to '
-        for i, sch_str in enumerate(sch_list):
-            if i == len(sch_list) - 1:
-                temp_str += 'and '
-            temp_str += sch_str
+        if sch_list is None:
+            tts_service.say('There are no schedule, my master.')
+        else:
+            # formulate as sentence for robot
+            temp_str = 'You need to '
+            for i, sch_str in enumerate(sch_list):
+                if i == len(sch_list) - 1:
+                    temp_str += 'and '
+                temp_str += sch_str
 
     elif instr.function == 5:  # check human
         rospy.set_param('/thesis/action_on', True)
-        time.sleep(5)
+        time.sleep(5 * step_t)
         target_human = get_human_from_name(name_dict=human_dict['name'], name=instr.target)
 
         if instr.type == 0:  # request from human
@@ -230,16 +235,16 @@ def get_function(instr):
 
     elif instr.function == 6:  # charge
         tts_service.say('I need to charge, can anyone help me, please?')
-        time.sleep(60)  # wait to charge 10 seconds
+        time.sleep(60 * step_t)  # wait to charge 10 seconds
 
     elif instr.function == 7:  # play videos
         tts_service.say('Would you like some music?')
         tabletService.playVideo("https://www.youtube.com/watch?v=lmNHeu7DB28")
-        time.sleep(instr.duration - (time.time() - start_time) - 0.5)
+        time.sleep((instr.duration - (time.time() - start_time) - 0.5) * step_t)
 
     elif instr.function == 8:  # play games
         tts_service.say('Let\'s play a game!')
-        time.sleep(instr.duration - (time.time() - start_time) - 0.5)
+        time.sleep((instr.duration - (time.time() - start_time) - 0.5) * step_t)
 
     elif instr.function == 9:  # emergency
         tts_service.say('Emergency. I will call Li-Pu for help.')
@@ -249,7 +254,7 @@ def get_function(instr):
         simple_move_base(loc[instr.destination][0], loc[instr.destination][1], loc[instr.destination][2])
 
     if instr.duration - (time.time() - start_time) > 0.:
-        time.sleep(instr.duration - (time.time() - start_time))
+        time.sleep((instr.duration - (time.time() - start_time)) * step_t)
 
     return
 
@@ -308,6 +313,8 @@ if __name__ == '__main__':
     human_dict = load_human_info2dict(human_info_dir)
     action_cat = get_action_cat()
 
+    step_t = 1.0  # time per time step (in second)
+
     office_x, office_y, office_yaw = 0.716, -0.824, 1.927  # location: 0
     bedroom_x, bedroom_y, bedroom_yaw = 4.971, -0.005, 2.026  # 1
     charge_x, charge_y, charge_yaw = 5.024, -0.318, -2.935
@@ -330,7 +337,13 @@ if __name__ == '__main__':
                    'SUCCEEDED', 'ABORTED', 'REJECTED',
                    'PREEMPTING', 'RECALLING', 'RECALLED',
                    'LOST']
+    # Start move_base
+    if '/move_base' not in rosnode.get_node_names():
+        rospy.loginfo('Start move_base.')
+        subprocess.call('~/catkin_ws/src/pepper_try/scripts/start_move_base.sh', shell=True)
+        time.sleep(1.5)
 
+    rospy.wait_for_service('/move_base/make_plan', timeout=30)
     get_global_path = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
 
     cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)

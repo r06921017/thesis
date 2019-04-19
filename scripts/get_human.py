@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: UTF-8 -*-
 """
 This is for human localization on Pepper with image stitching, ignoring obj_buffer in the code.
 """
