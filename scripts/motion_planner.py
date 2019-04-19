@@ -258,7 +258,7 @@ def remind_obj(in_obj):
         diningroom_obj = {'diningtable', 'toaster', 'fork', 'bowl', 'spoon', 'knife', 'cup', 'bowl', 'chair'}
 
         obj = {'office': office_obj, 'bedroom': bedroom_obj, 'livingroom': livingroom_obj, 'diningroom': diningroom_obj}
-        pickle.dump(obj, '../config/obj.pkl')
+        pickle.dump(obj, '../config/obj.pkl')  # save obj as pickle file
 
     out_loc = []
     for key in obj.keys():
@@ -275,9 +275,17 @@ def motion_cb(data):
     :return: None
     """
     # move to destination from node to node
+    cur_location = rospy.get_param('/thesis/pepper_location')
     for instr in data:
+        rospy.loginfo('go from ', loc_symbol[int(cur_location)], ' to ', loc_symbol[int(instr.destination)])
+        # if moving from livingroom/diningroom to office/bedroom/charge, then go to alley first
+        if (cur_location - instr.destination) > 1 and cur_location != 3:
+            simple_move_base(loc[3][0], loc[3][1], loc[3][2])
+
         simple_move_base(loc[instr.destination][0], loc[instr.destination][1], loc[instr.destination][2])
         rospy.set_param('/thesis/pepper_location', instr.destination)
+
+        get_function(instr)
 
     return
 
@@ -300,6 +308,8 @@ if __name__ == '__main__':
     living_x, living_y, living_yaw = 3.397, -5.461, 1.927
     dining_x, dining_y, dining_yaw = 6.258, -3.560, 1.353
     emer_x, emer_y, emer_yaw = 5.294, -3.869, -1.165  # emergency
+
+    loc_symbol = ['office', 'bedroom', 'charge', 'alley', 'living room', 'dining room']
 
     loc = [[office_x, office_y, office_yaw],
            [bedroom_x, bedroom_y, bedroom_yaw],
