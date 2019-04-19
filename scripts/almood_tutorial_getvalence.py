@@ -9,19 +9,19 @@ import sys
 import time
 
 
-def main(session):
+def main(in_session):
     """
     This example uses the currentPersonState method.
     """
     # Get the service ALMood.
 
-    moodService = session.service("ALMood")
-    moodService.subscribe("Tutorial_GetValence", "Active")
-    # The preloading of all ALMood extractors may take up to 3 secondes:
+    mood_service = in_session.service("ALMood")
+    mood_service.subscribe("Tutorial_GetValence", "Active")
+    # The pre-loading of all ALMood extractors may take up to 3 seconds:
     time.sleep(3)
-    print moodService.currentPersonState()["valence"]["value"]
+    print mood_service.currentPersonState()["valence"]["value"]
 
-    moodService.unsubscribe("Tutorial_GetValence")
+    mood_service.unsubscribe("Tutorial_GetValence")
 
 
 if __name__ == "__main__":
@@ -36,7 +36,7 @@ if __name__ == "__main__":
     try:
         session.connect("tcp://" + args.ip + ":" + str(args.port))
     except RuntimeError:
-        print ("Can't connect to Naoqi at ip \"" + args.ip + "\" on port " + str(args.port) +".\n"
+        print ("Can't connect to Naoqi at ip \"" + args.ip + "\" on port " + str(args.port) + ".\n"
                "Please check your script arguments. Run with -h option for help.")
         sys.exit(1)
     main(session)
