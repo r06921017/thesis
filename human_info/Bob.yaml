@@ -1,6 +1,6 @@
 action: 7
 ip: 192.168.0.123
-location: office
+location: 0
 name: Bob
 schedules:
   ScheduleArray: []

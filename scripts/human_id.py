@@ -299,7 +299,8 @@ def greeting_cb():
         show_color(colors)
 
         # Create Human message and store in yaml format
-        human = Human(name=name, ip=ip_num, gender=gen, age=temp_age, shirt_color=colors, location='greet', action=get_action_len())
+        human = Human(name=name, ip=ip_num, gender=gen, age=temp_age,
+                      shirt_color=colors, location=6, action=get_action_len())
         store_human_info(human)
         update_human_info_dict(human)
 

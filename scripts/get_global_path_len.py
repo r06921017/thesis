@@ -58,13 +58,15 @@ def get_path_step(start_num, dest_num):
 if __name__ == '__main__':
     office_x, office_y, office_yaw = 0.716, -0.824, 1.927  # location: 0
     bedroom_x, bedroom_y, bedroom_yaw = 4.971, -0.005, 2.026  # 1
-    charge_x, charge_y, charge_yaw = 5.024, -0.318, -2.935
-    alley_x, alley_y, alley_yaw = 5.140, -3.713, 2.017
-    living_x, living_y, living_yaw = 3.397, -5.461, 1.927
-    dining_x, dining_y, dining_yaw = 6.258, -3.560, 1.353
-    emer_x, emer_y, emer_yaw = 5.294, -3.869, -1.165  # emergency
+    charge_x, charge_y, charge_yaw = 5.024, -0.318, -2.935  # 2
+    alley_x, alley_y, alley_yaw = 5.140, -3.713, 2.017  # 3
+    living_x, living_y, living_yaw = 3.397, -5.461, 1.927  # 4
+    dining_x, dining_y, dining_yaw = 6.258, -3.560, 1.353  # 5
+    greet_x, greet_y, greet_yaw = 2.959, -5.039, -0.491  # 6, greeting for welcome
+    emer_x, emer_y, emer_yaw = 5.294, -3.869, -1.165  # 7, emergency
 
-    loc_symbol = ['office', 'bedroom', 'charge', 'alley', 'living room', 'dining room']
+    loc_symbol = {0: 'office', 1: 'bedroom', 2: 'charge', 3: 'alley', 4: 'livingroom',
+                  5: 'diningroom', 6: 'greet', 7: 'emergency'}
 
     loc = [[office_x, office_y, office_yaw],
            [bedroom_x, bedroom_y, bedroom_yaw],
