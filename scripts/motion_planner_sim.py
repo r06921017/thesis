@@ -26,6 +26,7 @@ def simple_move_base_sim(dest_symbol):
     :param dest_symbol:
     :return:
     """
+    time.sleep(step_t)
     return
 
 
@@ -94,7 +95,7 @@ if __name__ == '__main__':
     rospy.wait_for_service('/move_base/make_plan', timeout=30)
     get_global_path = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
 
-    rospy.Subscriber('/thesis/instruction_buffer', InstructionArray, motion_cb_sim, queue_size=1)
+    rospy.Subscriber('/thesis/task_buffer', InstructionArray, motion_cb_sim, queue_size=1)
 
     # Naoqi setting
     if rospy.has_param("Pepper_ip"):

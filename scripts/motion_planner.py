@@ -356,7 +356,7 @@ if __name__ == '__main__':
     get_global_path = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
 
     cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-    rospy.Subscriber('/thesis/instruction_buffer', InstructionArray, motion_cb, queue_size=1)
+    rospy.Subscriber('/thesis/task_buffer', InstructionArray, motion_cb, queue_size=1)
 
     # Naoqi setting
     if rospy.has_param("Pepper_ip"):
