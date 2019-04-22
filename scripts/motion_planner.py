@@ -339,6 +339,7 @@ if __name__ == '__main__':
            [alley_x, alley_y, alley_yaw],
            [living_x, living_y, living_yaw],
            [dining_x, dining_y, dining_yaw],
+           [greet_x, greet_y, greet_yaw],
            [emer_x, emer_y, emer_yaw]]
 
     goal_states = ['PENDING', 'ACTIVE', 'PREEMPTED',
