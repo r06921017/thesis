@@ -14,7 +14,7 @@ from tf.transformations import quaternion_from_euler
 
 
 def get_path_step(start_num, dest_num):
-    print 'start: {0}, goal: {1}'.format(loc_symbol[start_num], loc_symbol[dest_num])
+    print '{0} --> {1}'.format(loc_symbol[start_num], loc_symbol[dest_num])
 
     # print 'start: ', loc[start_num][0], loc[start_num][1], loc[start_num][2]
     # print 'dest: ', loc[dest_num][0], loc[dest_num][1], loc[dest_num][2]
@@ -39,20 +39,21 @@ def get_path_step(start_num, dest_num):
     temp_y = temp_global_path.plan.poses[0].pose.position.y
 
     total_dis = norm([temp_x - loc[start_num][0], temp_y - loc[start_num][1]])
-    for i in range(len(temp_global_path.plan.poses) - 1):
-        x1 = temp_global_path.plan.poses[i].pose.position.x
-        y1 = temp_global_path.plan.poses[i].pose.position.y
+    for idx in range(len(temp_global_path.plan.poses) - 1):
+        x1 = temp_global_path.plan.poses[idx].pose.position.x
+        y1 = temp_global_path.plan.poses[idx].pose.position.y
 
-        x2 = temp_global_path.plan.poses[i+1].pose.position.x
-        y2 = temp_global_path.plan.poses[i+1].pose.position.y
+        x2 = temp_global_path.plan.poses[idx+1].pose.position.x
+        y2 = temp_global_path.plan.poses[idx+1].pose.position.y
 
         total_dis += norm([x2-x1, y2-y1])
 
-    total_step = np.ceil(total_dis / (min_vx * step_t))  # type: float
+    total_step = np.ceil(total_dis / (min_vx * step_t)) + 1  # type: float
 
     print 'euclidean dis = ', norm([loc[start_num][0]-loc[dest_num][0], loc[start_num][1]-loc[dest_num][1]])
     print 'total_dis = ', total_dis
     print 'time step in real = ', total_step
+    print '------------------------------------------'
 
     return
 
@@ -96,3 +97,4 @@ if __name__ == '__main__':
     for i in range(len(loc_symbol)):
         for j in range(i+1, len(loc_symbol)):
             get_path_step(i, j)
+            raw_input("Press Enter to continue...")
