@@ -208,7 +208,7 @@ def get_action_cat():
         return rospy.get_param('action_cat')
     else:
         h_acts = pd.read_csv(rospkg.RosPack().get_path('thesis') + '/config/hand_actions.csv', sep=',')  # DataFrame
-        rospy.set_param('action_cat', action_cat)
+        rospy.set_param('action_cat', h_acts.columns.to_list())
         return h_acts.columns.to_list()
 
 

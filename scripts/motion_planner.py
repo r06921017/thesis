@@ -50,12 +50,16 @@ def get_cur_pos(pos_topic, t):
     temp_pos = rospy.wait_for_message(pos_topic, PoseWithCovarianceStamped, timeout=t)  # current robot position
     temp_x = temp_pos.pose.pose.position.x
     temp_y = temp_pos.pose.pose.position.y
-    temp_yaw = euler_from_quaternion(temp_pos.pose.pose.orientation)[2]
 
+    temp_yaw = euler_from_quaternion([temp_pos.pose.pose.orientation.x,
+                                      temp_pos.pose.pose.orientation.y,
+                                      temp_pos.pose.pose.orientation.z,
+                                      temp_pos.pose.pose.orientation.w])[2]
     return temp_x, temp_y, temp_yaw
 
 
 def simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius=1.0, with_rotation_first=True):
+    global motion_service, posture_service
     print 'inflation_radius = ', inflation_radius
 
     # robot is static
@@ -74,14 +78,14 @@ def simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius=1.0, with_rotati
         goal.pose.position.x = dest_x
         goal.pose.position.y = dest_y
 
-        # noinspection PyBroadException
-        try:
-            subprocess.call('~/catkin_ws/src/thesis/scripts/stop_move_base.sh', shell=True)
-        except Exception:
-            pass
-
-        subprocess.call('~/catkin_ws/src/pepper_try/scripts/start_move_base.sh', shell=True)
-        time.sleep(1.5)
+        # # noinspection PyBroadException
+        # try:
+        #     subprocess.call('~/catkin_ws/src/thesis/scripts/stop_move_base.sh', shell=True)
+        # except Exception:
+        #     pass
+        #
+        # subprocess.call('~/catkin_ws/src/thesis/scripts/start_move_base.sh', shell=True)
+        # time.sleep(1.5)
 
         if '/move_base' in rosnode.get_node_names():
             rospy.loginfo('move_base node succeed!')
@@ -117,6 +121,15 @@ def simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius=1.0, with_rotati
                     shutdown(sac)
                     inflation_radius -= 0.2
                     simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius, with_rotation_first)
+        else:
+            # noinspection PyBroadException
+            try:
+                subprocess.call('~/catkin_ws/src/thesis/scripts/stop_move_base.sh', shell=True)
+            except Exception:
+                pass
+
+            subprocess.call('~/catkin_ws/src/thesis/scripts/start_move_base.sh', shell=True)
+            time.sleep(1.5)
     return
 
 
@@ -153,7 +166,7 @@ def run_movebase(sac, x, y, yaw):
 
 
 def isin_dest(rx, ry, ryaw, des_x, des_y, des_yaw):
-    if norm(rx - des_x, ry - des_y) < 0.5 and abs(float(ryaw - des_yaw)) < 0.3:
+    if norm([rx - des_x, ry - des_y]) < 0.5 and abs(float(ryaw - des_yaw)) < 0.3:
         print 'is in destination'
         return True
     else:
@@ -239,7 +252,7 @@ def get_function(instr):
 
     elif instr.function == 7:  # play videos
         tts_service.say('Would you like some music?')
-        tabletService.playVideo("https://www.youtube.com/watch?v=lmNHeu7DB28")
+        tablet_service.playVideo("https://www.youtube.com/watch?v=lmNHeu7DB28")
         time.sleep((instr.duration - (time.time() - start_time) - 0.5) * step_t)
 
     elif instr.function == 8:  # play games
@@ -286,10 +299,17 @@ def motion_cb(data):
     :param data: InstructionArray
     :return: None
     """
+    print 'motion_cb'
     # move to destination from node to node
     cur_location = rospy.get_param('/thesis/pepper_location')
-    for instr in data:
-        rospy.loginfo('go from ', loc_symbol[int(cur_location)], ' to ', loc_symbol[int(instr.destination)])
+
+    # for i in range(len(data.InstructionArray)):
+    #     print data.InstructionArray[i].destination
+
+    for i in range(len(data.InstructionArray)):
+        start_t = time.time()
+        instr = data.InstructionArray[i]
+        print 'go from {0} to {1}'.format(loc_symbol[cur_location], loc_symbol[instr.destination])
 
         # if moving from livingroom/diningroom to office/bedroom/charge, then go to alley first
         if cur_location > 3 > instr.destination:
@@ -297,9 +317,37 @@ def motion_cb(data):
 
         simple_move_base(loc[instr.destination][0], loc[instr.destination][1], loc[instr.destination][2])
         rospy.set_param('/thesis/pepper_location', instr.destination)
+        print 'Duration: ', time.time() - start_t
+        print '-------------------------------------------------------------------'
+        # get_function(instr)
 
-        get_function(instr)
+    return
 
+
+def set_initial_pose(x, y, yaw, init_location):
+    initial_pose_pub = rospy.Publisher('/initialpose', PoseWithCovarianceStamped, queue_size=1)
+    initial_pose = PoseWithCovarianceStamped()
+    initial_pose.header.seq = 1
+    initial_pose.header.frame_id = 'map'
+    initial_pose.header.stamp.nsecs = 0
+
+    initial_pose.pose.pose.position.x = x
+    initial_pose.pose.pose.position.y = y
+    initial_pose.pose.pose.position.z = 0.0
+
+    (_, _, z, w) = quaternion_from_euler(0, 0, yaw)
+    initial_pose.pose.pose.orientation.x = 0.0
+    initial_pose.pose.pose.orientation.y = 0.0
+    initial_pose.pose.pose.orientation.z = z
+    initial_pose.pose.pose.orientation.w = w
+
+    for i in range(10):
+        initial_pose_pub.publish(initial_pose)
+        time.sleep(0.5)
+
+    rospy.set_param('/thesis/pepper_location', init_location)
+
+    print 'initial pose sent'
     return
 
 
@@ -314,7 +362,7 @@ if __name__ == '__main__':
     human_dict = load_human_info2dict(human_info_dir)
     action_cat = get_action_cat()
 
-    rospy.set_param('/thesis/pepper_loc', 2)  # initial robot location to 'charge'
+    # rospy.set_param('/thesis/pepper_location', 2)  # initial robot location to 'charge'
 
     step_t = 1.0  # time per time step (in second)
 
@@ -349,14 +397,13 @@ if __name__ == '__main__':
     # Start move_base
     if '/move_base' not in rosnode.get_node_names():
         rospy.loginfo('Start move_base.')
-        subprocess.call('~/catkin_ws/src/pepper_try/scripts/start_move_base.sh', shell=True)
+        subprocess.call('~/catkin_ws/src/thesis/scripts/start_move_base.sh', shell=True)
         time.sleep(1.5)
 
     rospy.wait_for_service('/move_base/make_plan', timeout=30)
     get_global_path = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
 
     cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
-    rospy.Subscriber('/thesis/task_buffer', InstructionArray, motion_cb, queue_size=1)
 
     # Naoqi setting
     if rospy.has_param("Pepper_ip"):
@@ -380,9 +427,12 @@ if __name__ == '__main__':
     tts_service = session.service('ALTextToSpeech')
     tts_service.setLanguage('English')
     asr_service = session.service("ALAnimatedSpeech")
-    tabletService = session.service("ALTabletService")
-    tabletService.enableWifi()  # ensure that the tablet wifi is enable
+    tablet_service = session.service("ALTabletService")
+    tablet_service.enableWifi()  # ensure that the tablet wifi is enable
     # End Naoqi setting
+
+    set_initial_pose(charge_x, charge_y, charge_yaw, 2)
+    rospy.Subscriber('/thesis/instruction_buffer', InstructionArray, motion_cb, queue_size=10)
 
     rospy.loginfo('Start Motion Planner !')
     rospy.spin()
