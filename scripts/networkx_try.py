@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf8 -*-
+"""
+1. Create shortest path among nodes with Floyd-Warshall algorithm.
+2. Visualization of graph.
+"""
 
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -9,138 +13,116 @@ import rospkg
 if __name__ == '__main__':
     pkg_dir = rospkg.RosPack().get_path('thesis')
 
-    # G = nx.Graph()
-    # G.add_edges_from([(1, 2), (1, 3)])
-    # A = nx.nx_agraph.to_agraph(G)
-    # A.draw('/home/rdaneel/temp.png', prog='dot')
-    #
-    # G1 = nx.path_graph(3)
-    # A1 = nx.nx_agraph.to_agraph(G1)
-    # A.draw('/home/rdaneel/temp1.png', prog='dot')
-
-    loc_symbol = {0: 'office', 1: 'bedroom', 2: 'charge', 3: 'alley', 4: 'livingroom',
-                  5: 'diningroom', 6: 'greet', 7: 'emergency'}
+    loc_symbol = {0: 'office',
+                  1: 'bedroom',
+                  2: 'charge',
+                  3: 'alley1',
+                  4: 'alley2',
+                  5: 'livingroom',
+                  6: 'diningroom',
+                  7: 'greet',
+                  8: 'emergency'}
 
     loc_symbol_val = loc_symbol.values()
 
-    G = nx.Graph()
-    G.add_node(0, pos=(0, 10))
-    G.add_node(1, pos=(12, 10))
-    G.add_node(2, pos=(12, 8))
-    G.add_node(3, pos=(8, 8))
-    G.add_node(4, pos=(8, 2))
-    G.add_node(5, pos=(0, 2))
-    G.add_node(6, pos=(12, 1))
-    G.add_node(7, pos=(0, 0))
-    G.add_node(8, pos=(8, 0))
+    map_graph = nx.Graph()
+    map_graph.add_node(0, pos=(0, 10))
+    map_graph.add_node(1, pos=(12, 10))
+    map_graph.add_node(2, pos=(12, 8))
+    map_graph.add_node(3, pos=(8, 8))
+    map_graph.add_node(4, pos=(8, 2))
+    map_graph.add_node(5, pos=(0, 2))
+    map_graph.add_node(6, pos=(12, 1))
+    map_graph.add_node(7, pos=(0, 0))
+    map_graph.add_node(8, pos=(8, 0))
 
-    G.add_edge(0, 1, weight=12)
-    G.add_edge(0, 3, weight=9)
-    G.add_edge(1, 2, weight=2)
-    G.add_edge(1, 3, weight=5)
-    G.add_edge(2, 3, weight=4)
-    G.add_edge(3, 4, weight=6)
-    G.add_edge(4, 5, weight=8)
-    G.add_edge(4, 6, weight=4)
-    G.add_edge(4, 7, weight=8)
-    G.add_edge(4, 8, weight=2)
-    G.add_edge(5, 7, weight=2)
-    G.add_edge(5, 8, weight=8)
-    G.add_edge(6, 8, weight=4)
-    G.add_edge(7, 8, weight=8)
+    map_graph.add_edge(0, 1, weight=12)
+    map_graph.add_edge(0, 3, weight=9)
+    map_graph.add_edge(1, 2, weight=2)
+    map_graph.add_edge(1, 3, weight=5)
+    map_graph.add_edge(2, 3, weight=4)
+    map_graph.add_edge(3, 4, weight=6)
+    map_graph.add_edge(4, 5, weight=8)
+    map_graph.add_edge(4, 6, weight=4)
+    map_graph.add_edge(4, 7, weight=8)
+    map_graph.add_edge(4, 8, weight=2)
+    map_graph.add_edge(5, 7, weight=2)
+    map_graph.add_edge(5, 8, weight=8)
+    map_graph.add_edge(6, 8, weight=4)
+    map_graph.add_edge(7, 8, weight=8)
 
-    pos = nx.get_node_attributes(G, 'pos')
-    weight_label = nx.get_edge_attributes(G, 'weight')
-    nx.draw(G, pos, with_labels=True, node_size=300, node_color='orange')
-    nx.draw_networkx_edge_labels(G, pos, edge_labels=weight_label)
-    plt.savefig(pkg_dir + '/config/temp_graph.png')
+    # Run Floyd Warshall algorithm for shortest path.
+    short_path = nx.floyd_warshall_numpy(map_graph)
+    np.save(file=pkg_dir+'/config/shortest_path.npy', arr=short_path, allow_pickle=True)
+    print '=== shortest path matrix ===\n', short_path
+    adjacency_matrix = nx.convert_matrix.to_numpy_array(map_graph)
+    print '=== adjacency matrix ===\n', adjacency_matrix
+    np.save(file=pkg_dir+'/config/adjacency_matrix.npy', arr=adjacency_matrix, allow_pickle=True)
 
-    pos_list = [G.nodes[n]['pos'] for n in G.nodes]
-    # pos_list = [(0, 9), (12, 9), (12, 7), (8, 1), (0, 1), (12, 1), (0, 0), (8, 0), (8, 7)]
+    # Draw weighted graph G
+    pos = nx.get_node_attributes(map_graph, 'pos')
+    weight_label = nx.get_edge_attributes(map_graph, 'weight')
+    nx.draw(map_graph, pos, with_labels=True, node_size=300, node_color='orange')
+    nx.draw_networkx_edge_labels(map_graph, pos, edge_labels=weight_label)
+    plt.savefig(pkg_dir + '/config/weighted_graph.png')
+    plt.clf()
 
-    # main graph for AI center
-    G1 = nx.Graph()
-    G1.add_nodes_from([str(i) for i in range(0, G.number_of_nodes())], value=0.0, robot=False, task=True)
+    # Create main graph for AI center
+    node_graph = nx.Graph()
+    node_num = map_graph.number_of_nodes()
+    node_graph.add_nodes_from([str(i) for i in range(0, node_num)], value=0.0, robot=False, task=True)
+    node_graph.nodes['2']['robot'] = True
 
-    for n in G1.nodes:
-        G1.nodes[n]['pos'] = pos_list[int(n)]
+    pos_list = [map_graph.nodes[n]['pos'] for n in map_graph.nodes]
 
-    # G1.add_node('0', pos=(0, 9), value=0.0, robot=False, task=True)
-    # G1.add_node('1', pos=(12, 9), value=0.0, robot=False, task=True)
-    # G1.add_node('2', pos=(12, 7), value=0.0, robot=True, task=True)
-    # G1.add_node('3', pos=(8, 1), value=0.0, robot=False, task=True)
-    # G1.add_node('4', pos=(0, 1), value=0.0, robot=False, task=True)
-    # G1.add_node('5', pos=(12, 1), value=0.0, robot=False, task=True)
-    # G1.add_node('6', pos=(0, 0), value=0.0, robot=False, task=True)
-    # G1.add_node('7', pos=(8, 0), value=0.0, robot=False, task=True)
-    # G1.add_node('8', pos=(8, 7), value=0.0, robot=False, task=True)
+    for n in node_graph.nodes:
+        node_graph.nodes[n]['pos'] = pos_list[int(n)]
 
-    for e in G.edges.items():
+    # Convert edge weight to node number
+    for e in map_graph.edges.items():
         node1 = str(e[0][0])
         node2 = str(e[0][1])
         weight = e[1]['weight']
 
-        print 'node = {0}, {1}'.format(node1, node2)
-        print 'w = ', weight
-
         previous_node = node1
 
-        start_node = G.nodes[e[0][0]]['pos']
-        end_node = G.nodes[e[0][1]]['pos']
+        start_node = map_graph.nodes[e[0][0]]['pos']
+        end_node = map_graph.nodes[e[0][1]]['pos']
 
         u_vec = tuple(np.subtract(end_node, start_node) / float(weight))
 
-        print 'unit vector = ', u_vec
-
         for i in range(1, weight):
-            # print 'add = ', np.add(start_node, tuple(np.multiply(u_vec, i)))
             new_pos = tuple(np.add(start_node, tuple(np.multiply(u_vec, i))))
-            # print 'new_pos = ', new_pos
             temp_node = node1 + node2 + '_' + str(i)
-            G1.add_node(temp_node, pos=new_pos, value=0.0, robot=False, task=False)
-            G1.add_edge(previous_node, temp_node)
+            node_graph.add_node(temp_node, pos=new_pos, value=0.0, robot=False, task=False)
+            node_graph.add_edge(previous_node, temp_node)
             previous_node = temp_node
 
-        G1.add_edge(previous_node, node2)
+        node_graph.add_edge(previous_node, node2)
 
-    for n in G1.nodes:
-        print 'n = ', n, ' ', G1.nodes[n]['task']
+    task_node = [n for n in node_graph.nodes if node_graph.nodes[n]['task']]  # nodes for adding tasks
+    task_graph = node_graph.subgraph(task_node)
 
-    task_node = [n for n in G1.nodes if G1.nodes[n]['task']]
-
-    G2 = G1.subgraph(task_node)
-
-    color_list = ['orange' if G1.nodes[n]['task'] else 'brown' for n in G1.nodes]
-    size_list = [500 if G1.nodes[n]['task'] else 100 for n in G1.nodes]
-    label_list = [True if G1.nodes[n]['task'] else False for n in G1.nodes]
-
-    pos = nx.get_node_attributes(G1, 'pos')
-    nx.draw(G1, pos, node_size=size_list, node_color=color_list)
-
-    node_label = {}
-    for n in G2.nodes:
-        node_label[n] = n
+    color_list = ['orange' if node_graph.nodes[n]['task'] else 'brown' for n in node_graph.nodes]
+    r_color_list = ['yellow' if node_graph.nodes[n]['robot'] else color_list[i] for i, n in enumerate(node_graph.nodes)]
+    size_list = [800 if node_graph.nodes[n]['task'] else 200 for n in node_graph.nodes]
+    label_list = [True if node_graph.nodes[n]['task'] else False for n in node_graph.nodes]
 
     # draw origin node
-    nx.draw_networkx_labels(G1, pos, labels=node_label)
+    pos_node_graph = nx.get_node_attributes(node_graph, 'pos')
+    nx.draw(node_graph, pos_node_graph, with_labels=False, node_size=size_list, node_color=r_color_list)
+
+    node_label = {}
+    for n in task_graph.nodes:
+        node_label[n] = loc_symbol_val[int(n)]
+
+    nx.draw_networkx_labels(node_graph, pos_node_graph, labels=node_label)
+    plt.savefig(pkg_dir + "/config/node_graph.png")
+    plt.clf()
 
     # draw value graph
-    # value_labels = nx.get_node_attributes(G2, 'value')
-    # nx.draw_networkx_labels(G2, pos, labels=value_labels)
-
-    # G2 = nx.Graph()
-    # G2.add_node('0', pos=(0, 9))
-    # G2.add_node('1', pos=(12, 9))
-    # G2.add_node('2', pos=(12, 7))
-    # G2.add_node('3', pos=(8, 1))
-    # G2.add_node('4', pos=(0, 1))
-    # G2.add_node('5', pos=(12, 1))
-    # G2.add_node('6', pos=(0, 0))
-    # G2.add_node('7', pos=(8, 0))
-
-    # pos = nx.get_node_attributes(G1, 'pos')
-    # nx.draw(G1, pos, with_labels=True, node_size=500, node_color='orange')
-
-    plt.savefig(pkg_dir + "/config/temp_graph3.png")
-
-    # G1.neighbors()
+    nx.draw(node_graph, pos_node_graph, with_labels=False, node_size=size_list, node_color=r_color_list)
+    value_labels = nx.get_node_attributes(node_graph, 'value')
+    nx.draw_networkx_labels(node_graph, pos_node_graph, labels=value_labels)
+    plt.savefig(pkg_dir + '/config/value_graph.png')
+    plt.clf()
