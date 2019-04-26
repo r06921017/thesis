@@ -27,14 +27,14 @@ if __name__ == '__main__':
     loc_num = len(loc_symbol)
     max_num = 3  # maximum number for simultaneous instructions in the period
     freq = 0.1  # 10 seconds
-    des = range(loc_num)  # destination
+    des = [0, 1, 5, 6, 8, 7]  # destination
 
     i_list = []  # i for 'instruction'
     # i_num = np.random.randint(max_num, dtype=int)
 
     for i in range(max_num):
         temp_i = Instruction(id=i, type=0, duration=3, source='Charlie', status=0,
-                             function=0, target='Bob', destination=des[i % loc_num])
+                             function=0, target='Bob', destination=des[i])
         i_list.append(temp_i)
 
     # print 'i_list = ', i_list
