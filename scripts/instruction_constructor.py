@@ -13,8 +13,18 @@ if __name__ == '__main__':
     instr_pub = rospy.Publisher('/thesis/instruction_buffer', InstructionArray, queue_size=10, latch=True)
     rospy.loginfo('instruction_constructor start!')
 
+    loc_symbol = {0: 'office',
+                  1: 'bedroom',
+                  2: 'charge',
+                  3: 'alley1',
+                  4: 'alley2',
+                  5: 'livingroom',
+                  6: 'diningroom',
+                  7: 'greet',
+                  8: 'emergency'}
+
     # initialize parameters
-    loc_num = 6
+    loc_num = len(loc_symbol)
     max_num = 3  # maximum number for simultaneous instructions in the period
     freq = 0.1  # 10 seconds
     des = range(loc_num)  # destination
