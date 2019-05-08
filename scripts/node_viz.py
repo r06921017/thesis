@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf8 -*-
+# -*- coding: UTF-8 -*-
 """
 1. Create shortest path among nodes with Floyd-Warshall algorithm.
 2. Visualization of graph.
@@ -13,8 +13,7 @@ import rospy
 from std_msgs.msg import String
 from thesis.msg import InstructionArray
 
-import time
-from cv_bridge import CvBridge, CvBridgeError
+from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
 
 import matplotlib.pyplot as plt
@@ -96,8 +95,6 @@ def render_node(r_node, i_node_set, in_node_graph, gtype='node', save=False):
     """
 
     global robot_pre_node
-
-    # fig = plt.figure()
 
     # Reset the task node
     for node in in_node_graph.nodes:
@@ -183,10 +180,10 @@ def create_map_graph(save_npy=False):
     map_graph.add_edge(3, 4, weight=6)
     map_graph.add_edge(4, 5, weight=8)
     map_graph.add_edge(4, 6, weight=4)
-    map_graph.add_edge(4, 7, weight=8)
+    # map_graph.add_edge(4, 7, weight=8)
     map_graph.add_edge(4, 8, weight=2)
     map_graph.add_edge(5, 7, weight=2)
-    map_graph.add_edge(5, 8, weight=8)
+    # map_graph.add_edge(5, 8, weight=8)
     map_graph.add_edge(6, 8, weight=4)
     map_graph.add_edge(7, 8, weight=8)
 
@@ -268,7 +265,6 @@ if __name__ == '__main__':
 
     cv_bridge = CvBridge()
     viz_pub = rospy.Publisher('/thesis/node_viz', Image, queue_size=5)
-    # render_node(robot_pre_node, None, cur_node_graph)
 
     rospy.loginfo('Start node_viz!')
     rospy.spin()

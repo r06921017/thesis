@@ -1,21 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 """
-Solve task planning with priority first.
+Solve task planning with current shortest time (do + move) first.
 """
 
-from task_motion_planner_fcfs import *
+from task_motion_planner_pf import *
 
 
-class TaskMotionPlannerPF(TaskMotionPlannerFCFS):
+class TaskMotionPlannerSF(TaskMotionPlannerPF):
     def __init__(self):
-        TaskMotionPlannerFCFS.__init__(self)
-        self.r_dict = dict()
-
-    def show_reward(self):
-        for key, instr_id in self.r_dict.iteritems():
-            print 'id: {0}, reward: {1}'.format(key, instr_id)
-        return
+        TaskMotionPlannerPF.__init__(self)
+        self.shortest_path = nx.floyd_warshall_numpy(self.map_graph)
 
     def plan_task(self, in_instructions):
         rospy.loginfo('Planning task ...')
@@ -31,16 +26,16 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFS):
 
         # Fetch the destination from the task
         if len(self.instr_dict.keys()) > 0:
-            # Create reward dictionary = {'id': 'r'}
-            self.r_dict = dict()
+            # Create dictionary = {'id': 'property'}
+            _property_dict = dict()
 
-            for _, t_instr in self.instr_dict.iteritems():
-                self.r_dict[t_instr.id] = t_instr.r
-            self.show_reward()
+            for _, instr in self.instr_dict.iteritems():
+                _property_dict[instr.id] = instr.duration + self.shortest_path[instr.destination, self.cur_node]
+            self.show_property(_property_dict)
 
-            # Get the key(id) with the max value(r) in self.r_dict
-            max_val_key = max(self.r_dict.iterkeys(), key=(lambda key: self.r_dict[key]))
-            dest_node = self.instr_dict[max_val_key].destination  # destination node
+            # Get the key(id) with the min value(r) in self.property_dict
+            self.property_key = min(_property_dict.iterkeys(), key=(lambda key: _property_dict[key]))
+            dest_node = self.instr_dict[self.property_key].destination  # destination node
             rospy.loginfo('destination node: {0}'.format(dest_node))
 
             # Calculate the shortest path nodes from current node to the goal node
@@ -52,46 +47,8 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFS):
                 self.next_node = self.cur_node
         return
 
-    def plan_motion_viz(self):
-        if self.cur_node == self.next_node:
-            rospy.loginfo('Motion: Reach node {0}.'.format(self.next_node))
-
-            if len(self.instr_dest_dict[self.cur_node]) > 0:
-                print 'self.instr_dest_dict[self.cur_node] = ', self.instr_dest_dict[self.cur_node]
-                self.show_reward()
-
-                for idx in self.instr_dest_dict[self.cur_node]:
-                    if idx == max(self.r_dict.iterkeys(), key=(lambda k: self.r_dict[k])):
-                        do_instr = self.instr_dict[idx]
-                        rospy.loginfo('Do instr {0}: {1}'.format(idx, do_instr.function))
-                        rospy.sleep(do_instr.duration)
-
-                        del self.instr_dict[do_instr.id]
-                        del self.r_dict[do_instr.id]
-                        self.instr_dest_dict[self.cur_node].remove(do_instr.id)
-
-                        break
-
-                # Convert undo_tasks to a list() and publish to /thesis/instruction_buffer
-                undo_instr_list = list()
-                for key, value in self.instr_dict.iteritems():
-                    undo_instr_list.append(value)
-
-                self.task_pub.publish(undo_instr_list)
-
-            else:
-                rospy.loginfo('No instructions on task {0}'.format(self.cur_node))
-                if len(self.instr_dict) > 0:
-                    self.plan_task(self.instr_dict)
-
-        else:
-            rospy.loginfo('Motion: from {0} to {1}'.format(self.cur_node, self.next_node))
-            self.move_adjacency_node(self.next_node, sim=False, render=True)
-
-        return
-
 
 if __name__ == '__main__':
-    rospy.init_node('task_motion_planner_pf', anonymous=True, log_level=rospy.INFO)
-    tamp_pf = TaskMotionPlannerPF()
-    tamp_pf.run_plan_viz()
+    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
+    tamp = TaskMotionPlannerSF()
+    tamp.run_plan_viz()

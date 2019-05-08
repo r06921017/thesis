@@ -16,9 +16,8 @@ def get_instr_dest(in_instruction):
 
 
 if __name__ == '__main__':
-    rospy.init_node('instruction_constructor', anonymous=True, log_level=rospy.INFO)
+    rospy.init_node('instruction_publisher', anonymous=True, log_level=rospy.INFO)
     instr_pub = rospy.Publisher('/thesis/instruction_buffer', InstructionArray, queue_size=1)
-    # instr_dest_pub = rospy.Publisher('/thesis/instruction_destination', UIntList, queue_size=10)
     rospy.loginfo('instruction_constructor start!')
 
     loc_symbol = {0: 'office',
@@ -41,13 +40,14 @@ if __name__ == '__main__':
 
     i_list = []  # i for 'instruction'
     instruction_node_set = set()  # int set for instruction destination
+    last_id = 0
 
     for i in range(max_num):
-        j = i
-        temp_i = Instruction(id=i, type=0, duration=1, source='Charlie', status=0, r=r_list[j], b=b_list[j],
-                             function=0, target='Bob', destination=des[j])
+        temp_i = Instruction(id=last_id, type=0, duration=1, source='Charlie', status=0, r=r_list[i], b=b_list[i],
+                             function=0, target='Bob', destination=des[i])
         i_list.append(temp_i)
         instruction_node_set.add(temp_i.destination)
+        last_id += 1
 
     print 'instruction_node_set = ', instruction_node_set
     instruction_node_set = list(instruction_node_set)
@@ -57,5 +57,15 @@ if __name__ == '__main__':
     instr_pub.publish(i_list)
     # instr_dest_pub.publish(instruction_node_set)
 
-    rospy.loginfo('Publish instructions.')
-    # rospy.spin()
+    rospy.loginfo('Publish instructions first.')
+    # rospy.sleep(20)
+    #
+    # rospy.loginfo('Wait for undo instructions ...')
+    # i_list = rospy.wait_for_message('/thesis/instruction_buffer', InstructionArray, timeout=10)
+    # for i in range(max_num, len(des)):
+    #     temp_i = Instruction(id=last_id, type=0, duration=1, source='Charlie', status=0, r=r_list[i], b=b_list[i],
+    #                          function=0, target='Bob', destination=des[i])
+    #     i_list.data.append(temp_i)
+    # rospy.sleep(1)
+    # instr_pub.publish(i_list)
+    # rospy.loginfo('Publish instructions again.')

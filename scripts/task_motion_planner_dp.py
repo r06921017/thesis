@@ -13,10 +13,10 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         """
         TaskMotionPlannerFCFS.__init__(self)
         self.shortest_path = nx.floyd_warshall_numpy(self.map_graph)
-        print '&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'
+        print '----------------------------------------'
         print self.shortest_path
         print self.shortest_path.shape
-        print '&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&'
+        print '----------------------------------------'
 
     def plan_task(self, in_instructions):
 
@@ -73,23 +73,31 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
     def plan_motion_viz(self):
         if self.cur_node == self.next_node:
             rospy.loginfo('Motion: Reach node {0}.'.format(self.next_node))
-            if self.cur_node in self.instr_dest_dict.keys():
 
-                # This is for Value Iteration!
+            if len(self.instr_dest_dict[self.cur_node]) > 0:
+                # Create reward_dict = {'reward (float)': 'id (int)'}
+                reward_dict = dict()
                 for idx in self.instr_dest_dict[self.cur_node]:
-                    do_instr = self.instr_dict[idx]
-                    rospy.loginfo('Do instr {0}: {1}'.format(idx, do_instr.function))
+                    instr = self.instr_dict[idx]
+                    reward_dict[instr.r] = instr.id
+
+                # Sort the instructions with the max reward
+                for r in sorted(reward_dict.keys()):
+                    do_instr = self.instr_dict[reward_dict[r]]
+                    rospy.loginfo('Do instr {0}: {1}'.format(reward_dict[r], do_instr.function))
                     rospy.sleep(do_instr.duration)
-                    del self.instr_dict[idx]
+                    del self.instr_dict[reward_dict[r]]
                     self.show_instr()
 
-                del self.instr_dest_dict[self.cur_node]
+                # Reset the set when all the tasks in the instructions are done.
+                self.instr_dest_dict[self.cur_node].clear()
 
                 # Convert undo_tasks to a list() and publish to /thesis/instruction_buffer
                 undo_instr_list = list()
                 for key, value in self.instr_dict.iteritems():
                     undo_instr_list.append(value)
 
+                rospy.sleep(0.5)
                 self.task_pub.publish(undo_instr_list)
 
             else:
@@ -105,7 +113,6 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
 
 if __name__ == '__main__':
-    rospy.init_node('task_motion_planner_dp', anonymous=True, log_level=rospy.INFO)
-    tamp_dp = TaskMotionPlannerDP()
-    rospy.loginfo('Start task planner dp!')
-    tamp_dp.run_plan_viz()
+    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
+    tamp = TaskMotionPlannerDP()
+    tamp.run_plan_viz()

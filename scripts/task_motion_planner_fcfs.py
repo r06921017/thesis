@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf8 -*-
+# -*- coding: UTF-8 -*-
 """
 Solve task planning with first come first serve
 """
@@ -23,16 +23,14 @@ class TaskMotionPlannerFCFS:
         self.adjacency_matrix = nx.convert_matrix.to_numpy_array(self.map_graph)
         self.cur_node = rospy.get_param('/thesis/pepper_location', 2)  # initial at charge, type=int
         self.next_node = rospy.get_param('/thesis/pepper_location', 2)  # initial at charge, type=int
-        self.motion_rate = 1
+        self.time_step = 1
         self.instr_dict = dict()
         self.instr_dest_dict = {n: set() for n in self.map_graph.nodes}
-        self.last_id = 0
 
         # for visualization, including nodes and edges
-        self.viz_node_pub = rospy.Publisher('/thesis/robot_node', String, queue_size=1)
+        self.viz_node_pub = rospy.Publisher('/thesis/robot_node', String, queue_size=2)
         self._pkg_dir = rospkg.RosPack().get_path('thesis')
         self.cur_neighbor = self.adjacency_matrix[self.cur_node].astype(int).tolist()
-        self.viz_node_pub.publish(String(data=str(self.cur_node)))
 
     def show_instr(self):
         _loc_symbol = {0: 'office',
@@ -47,19 +45,17 @@ class TaskMotionPlannerFCFS:
 
         print '--------------------------------------------------------------------------'
         for key, instr in self.instr_dict.iteritems():
-            print 'instr {0}: destination={1}, function={2}, duration={3}'.format(instr.id,
-                                                                                  instr.destination,
+            print 'instr {0}: dest={1}, function={2}, duration={3}, r={4}'.format(instr.id,
+                                                                                  _loc_symbol[instr.destination],
                                                                                   instr.function,
-                                                                                  instr.duration)
+                                                                                  instr.duration,
+                                                                                  instr.r)
         print '--------------------------------------------------------------------------'
         return
 
     def get_pkg_dir(self):
         print 'pkg path', self._pkg_dir
         return
-
-    def instr_to_dict(self):
-        self.last_id += 1
 
     def plan_task(self, in_instructions):
         rospy.loginfo('Planning task ...')
@@ -156,19 +152,18 @@ class TaskMotionPlannerFCFS:
     def plan_motion_viz(self):
         if self.cur_node == self.next_node:
             rospy.loginfo('Motion: Reach node {0}.'.format(self.next_node))
-            if self.cur_node in self.instr_dest_dict.keys():
-
+            # if self.cur_node in self.instr_dest_dict.keys():
+            if len(self.instr_dest_dict[self.cur_node]) > 0:
                 # This is for FCFS!!!
                 for idx in self.instr_dest_dict[self.cur_node]:
                     if idx == min(self.instr_dict.keys()):
                         do_instr = self.instr_dict[idx]
                         rospy.loginfo('Do instr {0}: {1}'.format(idx, do_instr.function))
                         rospy.sleep(do_instr.duration)
-                        del self.instr_dict[do_instr.id]
 
+                        del self.instr_dict[do_instr.id]
                         self.instr_dest_dict[self.cur_node].remove(do_instr.id)
-                        if len(self.instr_dest_dict[self.cur_node]) == 0:
-                            del self.instr_dest_dict[self.cur_node]
+
                         break
 
                 # Convert undo_tasks to a list() and publish to /thesis/instruction_buffer
@@ -191,14 +186,21 @@ class TaskMotionPlannerFCFS:
 
     def run_plan_viz(self):
         rospy.loginfo('Start TAMP!')
-        rate = rospy.Rate(self.motion_rate)
+
+        # Publish the initial position node of the robot to visualization
+        rospy.sleep(0.5)
+        self.viz_node_pub.publish(String(data=str(self.cur_node)))
+
+        # Start running motion planning and visualization
+        rate = rospy.Rate(1.0 / self.time_step)
         while not rospy.is_shutdown():
             self.plan_motion_viz()
             rate.sleep()
+
         return
 
 
 if __name__ == '__main__':
-    rospy.init_node('task_motion_planner_fcfs', anonymous=True, log_level=rospy.INFO)
-    tamp_fcfs = TaskMotionPlannerFCFS()
-    tamp_fcfs.run_plan_viz()
+    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
+    tamp = TaskMotionPlannerFCFS()
+    tamp.run_plan_viz()

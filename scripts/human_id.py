@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# -*- coding: UTF-8 -*-
 """
 This is for human identification
 """
@@ -349,7 +349,7 @@ def update_human_info_dict(in_human):
         h_dict['ip'] = ip_dict
 
         with open('human_dict.pkl', 'wb') as fin:
-            pickle.dump(h_dict, 'human_dict.pkl')
+            pickle.dump(h_dict, fin)
 
     return
 
