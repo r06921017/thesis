@@ -1,0 +1,12 @@
+action: 7
+ip: 192.168.0.123
+location: 0
+name: Bob
+schedules:
+  ScheduleArray: []
+shirt_color:
+- [169, 19, 58]
+- [150, 17, 75]
+- [198, 34, 97]
+x: 0.0
+y: 0.0

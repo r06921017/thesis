@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# -*- coding: UTF-8 -*-
 
 # this is the file used to produce fake laser data to help Pepper's sparse laser data,
 # also publish the tf from Tibia to laser

@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+# -*- coding: UTF-8 -*-
+
 """
 Turn on tf-openpose with Pepper and visualize with ros imgmsg
 Input: images from both top and bottom camera from Pepper

@@ -58,6 +58,9 @@ add_message_files(
   HumanArray.msg
   Schedule.msg
   ScheduleArray.msg
+  Instruction.msg
+  InstructionArray.msg
+  UIntList.msg
 )
 
 ## Generate services in the 'srv' folder
