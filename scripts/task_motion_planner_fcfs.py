@@ -23,7 +23,7 @@ class TaskMotionPlannerFCFS:
         self.adjacency_matrix = nx.convert_matrix.to_numpy_array(self.map_graph)
         self.cur_node = rospy.get_param('/thesis/pepper_location', 2)  # initial at charge, type=int
         self.next_node = rospy.get_param('/thesis/pepper_location', 2)  # initial at charge, type=int
-        self.time_step = 1
+        self.time_step = 2
         self.instr_dict = dict()
         self.instr_dest_dict = {n: set() for n in self.map_graph.nodes}
 

@@ -83,23 +83,23 @@ class InstructionConstructor:
         return
 
     def test_scenario(self):
-        # max_num = 20
-        # des = [random.choice(self.task_loc) for _ in range(max_num)]
-        # r_list = [random.choice(self.task_priority) for _ in range(max_num)]
-        # b_list = [self.b_dict[r] for r in r_list]
-        # d_list = [random.choice(self.task_duration) for _ in range(max_num)]
-        #
+        max_num = 10
+        des = [random.choice(self.task_loc) for _ in range(max_num)]
+        r_list = [random.choice(self.task_priority) for _ in range(max_num)]
+        b_list = [self.b_dict[r] for r in r_list]
+        d_list = [random.choice(self.task_duration) for _ in range(max_num)]
+
         # print '++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
         # print 'des: ', des
         # print 'r_list: ', r_list
         # print 'b_list: ', b_list
         # print '++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
 
-        max_num = 3
-        des = [0, 5, 0, 6, 8]  # destination
-        r_list = [4, 5, 1, 2, 3]  # reward
-        b_list = [0.95, 0.99, 0.9, 0.92, 0.93]  # decay factor
-        d_list = [1, 1, 1, 1, 1]  # duration
+        # max_num = 3
+        # des = [0, 5, 0, 6, 8]  # destination
+        # r_list = [4, 5, 1, 2, 3]  # reward
+        # b_list = [0.95, 0.99, 0.9, 0.92, 0.93]  # decay factor
+        # d_list = [1, 1, 1, 1, 1]  # duration
 
         for i in range(max_num):
             temp_i = Instruction(id=self.last_id, type=0, duration=d_list[i], source='Charlie', status=0,
@@ -107,7 +107,7 @@ class InstructionConstructor:
             self.instr_dict[self.last_id] = temp_i
             self.last_id += 1
 
-        t = 2
+        t = 1
         rospy.loginfo('Sleep for {0} seconds'.format(str(t)))
         rospy.sleep(t)
 
