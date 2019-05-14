@@ -85,9 +85,9 @@ class InstructionConstructor:
     def test_scenario(self):
         max_num = 10
         des = [random.choice(self.task_loc) for _ in range(max_num)]
-        r_list = [random.choice(self.task_priority) for _ in range(max_num)]
-        b_list = [self.b_dict[r] for r in r_list]
-        d_list = [random.choice(self.task_duration) for _ in range(max_num)]
+        r_list = [random.choice(self.task_priority) for _ in range(max_num)]  # reward list
+        b_list = [self.b_dict[r] for r in r_list]  # decay factor list
+        d_list = [random.choice(self.task_duration) for _ in range(max_num)]  # duration list
 
         # print '++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
         # print 'des: ', des
@@ -107,6 +107,8 @@ class InstructionConstructor:
             self.instr_dict[self.last_id] = temp_i
             self.last_id += 1
 
+        rospy.loginfo('Total task duration: {0} (s)'.format(sum(d_list)))
+
         t = 1
         rospy.loginfo('Sleep for {0} seconds'.format(str(t)))
         rospy.sleep(t)
@@ -119,7 +121,10 @@ class InstructionConstructor:
             try:
                 temp_instr = rospy.wait_for_message('/thesis/instruction_buffer', InstructionArray, timeout=0.5)
                 if len(temp_instr.data) == 0:
-                    rospy.loginfo('Task process time: {0} (s)'.format(time.time() - start_time - t))
+                    end_time = time.time()
+                    rospy.loginfo('Total task duration: {0} (s)'.format(sum(d_list)))
+                    rospy.loginfo('Task process time: {0} (s)'.format(end_time - start_time - t))
+                    rospy.loginfo('Navigation process time: {0} (s)'.format(end_time - start_time - t - sum(d_list)))
                     break
 
             except rospy.ROSException:  # timeout
