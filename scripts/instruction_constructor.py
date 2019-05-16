@@ -11,6 +11,8 @@ from node_viz import create_map_graph
 from std_msgs.msg import Int8
 import time
 import random
+import os
+import argparse
 
 
 class InstructionConstructor:
@@ -83,27 +85,29 @@ class InstructionConstructor:
         return
 
     def test_scenario(self):
-        max_num = 10
-        des = [random.choice(self.task_loc) for _ in range(max_num)]
-        r_list = [random.choice(self.task_priority) for _ in range(max_num)]  # reward list
-        b_list = [self.b_dict[r] for r in r_list]  # decay factor list
-        d_list = [random.choice(self.task_duration) for _ in range(max_num)]  # duration list
+        if is_random:  # for random generate tasks
+            max_num = args.max_num
+            des_ls = [random.choice(self.task_loc) for _ in range(max_num)]
+            r_list = [random.choice(self.task_priority) for _ in range(max_num)]  # reward list
+            b_list = [self.b_dict[r] for r in r_list]  # decay factor list
+            d_list = [random.choice(self.task_duration) for _ in range(max_num)]  # duration list
 
-        # print '++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
-        # print 'des: ', des
-        # print 'r_list: ', r_list
-        # print 'b_list: ', b_list
-        # print '++++++++++++++++++++++++++++++++++++++++++++++++++++++++'
+        else:
+            # des_ls = [5, 7, 0, 1, 1, 1, 0, 0, 7, 5]  # destination
+            # r_list = [3, 4, 2, 4, 1, 3, 1, 4, 3, 3]  # reward
+            # d_list = [9, 1, 3, 7, 7, 6, 3, 2, 2, 5]  # duration
+            # b_list = [self.b_dict[r] for r in r_list]  # decay factor list
 
-        # max_num = 3
-        # des = [0, 5, 0, 6, 8]  # destination
-        # r_list = [4, 5, 1, 2, 3]  # reward
-        # b_list = [0.95, 0.99, 0.9, 0.92, 0.93]  # decay factor
-        # d_list = [1, 1, 1, 1, 1]  # duration
+            des_ls = [0, 5, 5, 0, 7, 2, 1, 6, 2, 7, 2, 6, 1, 6, 0, 6, 5]  # destination
+            r_list = [2, 2, 1, 2, 1, 3, 2, 2, 2, 3, 1, 4, 1, 2, 4, 1, 4]  # reward
+            d_list = [9, 2, 8, 3, 6, 9, 3, 7, 3, 8, 5, 7, 9, 1, 6, 5, 9]  # duration
+            b_list = [self.b_dict[r] for r in r_list]  # decay factor list
+
+            max_num = len(des_ls)
 
         for i in range(max_num):
             temp_i = Instruction(id=self.last_id, type=0, duration=d_list[i], source='Charlie', status=0,
-                                 r=r_list[i], b=b_list[i], function=0, target='Bob', destination=des[i])
+                                 r=r_list[i], b=b_list[i], function=0, target='Bob', destination=des_ls[i])
             self.instr_dict[self.last_id] = temp_i
             self.last_id += 1
 
@@ -134,6 +138,19 @@ class InstructionConstructor:
 
 
 if __name__ == '__main__':
-    rospy.init_node('instruction_constructor', anonymous=True, log_level=rospy.INFO)
+    rospy.init_node(os.path.basename(__file__).split('.')[0], anonymous=True, log_level=rospy.INFO)
+    parser = argparse.ArgumentParser(description='Check roslaunch arg')
+    parser.add_argument('--max_num', type=int, default=10)
+    parser.add_argument('--is_rand', type=int, default=1)
+    args = parser.parse_args(rospy.myargv()[1:])
+
+    if args.is_rand == 1:
+        is_random = True
+    elif args.is_rand == 0:
+        is_random = False
+    else:
+        rospy.logerr('is_rand only supports 0 or 1.')
+        exit(1)
+
     instr_constructor = InstructionConstructor()
     instr_constructor.test_scenario()

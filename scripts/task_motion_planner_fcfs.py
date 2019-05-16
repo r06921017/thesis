@@ -23,7 +23,7 @@ class TaskMotionPlannerFCFS:
         self.adjacency_matrix = nx.convert_matrix.to_numpy_array(self.map_graph)
         self.cur_node = rospy.get_param('/thesis/pepper_location', 2)  # initial at charge, type=int
         self.next_node = rospy.get_param('/thesis/pepper_location', 2)  # initial at charge, type=int
-        self.time_step = 2
+        self.time_step = rospy.get_param('/thesis/time_step', 2.0)
         self.instr_dict = dict()
         self.instr_dest_dict = {n: set() for n in self.map_graph.nodes}
 
@@ -46,7 +46,7 @@ class TaskMotionPlannerFCFS:
         print '--------------------------------------------------------------------------'
         for key, instr in self.instr_dict.iteritems():
             print 'instr {0}: dest={1}, function={2}, duration={3}, r={4}'.format(instr.id,
-                                                                                  _loc_symbol[instr.destination],
+                                                                                  instr.destination,
                                                                                   instr.function,
                                                                                   instr.duration,
                                                                                   instr.r)
@@ -72,7 +72,7 @@ class TaskMotionPlannerFCFS:
         # Fetch the destination from the task
         if len(self.instr_dict.keys()) > 0:
             dest_node = self.instr_dict[min(self.instr_dict.keys())].destination  # destination node
-            rospy.loginfo('destination node: {0}'.format(dest_node))
+            rospy.logdebug('destination node: {0}'.format(dest_node))
             temp_path = nx.shortest_path(self.map_graph, self.cur_node, dest_node, weight='weight')
             print 'temp_path = ', temp_path
             if len(temp_path) > 1:
@@ -89,8 +89,14 @@ class TaskMotionPlannerFCFS:
         :param render: Whether to show on networkx.
         :return: next_neighbor, type=list()
         """
-        print 'start moving, cur_neighbor = ', self.cur_neighbor
+
+        rospy.logdebug('move_adjacency_node!!!!')
+        rospy.logdebug('cur_neighbor = {0}'.format(self.cur_neighbor))
+
         _neighbor_nodes = np.where(np.array(self.cur_neighbor) > 0)[0].tolist()
+
+        rospy.logdebug('dest_neighbor_node = {0}'.format(dest_neighbor_node))
+        rospy.logdebug('_neighbor_nodes = {0}'.format(_neighbor_nodes))
 
         if dest_neighbor_node == self.cur_node:
             rospy.loginfo('dest_node is the same as current node.')
@@ -121,7 +127,7 @@ class TaskMotionPlannerFCFS:
 
         if not sim:  # if real move, not checking the candidate steps.
             self.cur_neighbor = list(_temp_neighbor)
-            print 'self.cur_neighbor:  ', self.cur_neighbor
+            rospy.logdebug('self.cur_neighbor: {0}'.format(self.cur_neighbor))
 
             if render:
                 # robot reach destination neighbor node
@@ -139,14 +145,15 @@ class TaskMotionPlannerFCFS:
                         _robot_node += e
                     _robot_node += '_'
                     _robot_node += str(_temp_step)
-                print 'robot_node = ', _robot_node
+
+                rospy.loginfo('robot_node = {0}'.format(_robot_node))
 
                 # Publish the robot node in str type
                 _viz_node = String()
                 _viz_node.data = str(_robot_node)
                 self.viz_node_pub.publish(_viz_node)
 
-        print 'neighbor array after moving: ', _temp_neighbor
+        rospy.logdebug('neighbor array after moving: {0}'.format(_temp_neighbor))
         return _temp_neighbor
 
     def plan_motion_viz(self):
