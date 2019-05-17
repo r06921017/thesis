@@ -16,7 +16,7 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFS):
     @staticmethod
     def show_property(in_dict):
         for key, instr_id in in_dict.iteritems():
-            print 'id: {0}, reward: {1}'.format(key, instr_id)
+            rospy.logdebug('id: {0}, reward: {1}'.format(key, instr_id))
         return
 
     def plan_task(self, in_instructions):
@@ -48,11 +48,13 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFS):
 
             # Calculate the shortest path nodes from current node to the goal node
             temp_path = nx.shortest_path(self.map_graph, self.cur_node, dest_node, weight='weight')
-            print 'temp_path = ', temp_path
+            rospy.logdebug('temp_path = {0}'.format(temp_path))
             if len(temp_path) > 1:
                 self.next_node = temp_path[1]  # next neighbor node for motion planner
             else:
                 self.next_node = self.cur_node
+            rospy.loginfo('plan_task result: {0}'.format(self.next_node))
+
         return
 
     def plan_motion_viz(self):

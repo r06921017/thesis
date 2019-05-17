@@ -40,11 +40,14 @@ class TaskMotionPlannerSF(TaskMotionPlannerPF):
 
             # Calculate the shortest path nodes from current node to the goal node
             temp_path = nx.shortest_path(self.map_graph, self.cur_node, dest_node, weight='weight')
-            print 'temp_path = ', temp_path
+            rospy.logdebug('temp_path = {0}'.format(temp_path))
+
             if len(temp_path) > 1:
                 self.next_node = temp_path[1]  # next neighbor node for motion planner
             else:
                 self.next_node = self.cur_node
+            rospy.loginfo('plan_task result: {0}'.format(self.next_node))
+
         return
 
 

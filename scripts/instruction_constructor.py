@@ -5,6 +5,7 @@ Construct instructions based on human request and robot perception.
 """
 
 import rospy
+import rospkg
 from jsk_gui_msgs.msg import VoiceMessage
 from thesis.msg import *
 from node_viz import create_map_graph
@@ -13,6 +14,8 @@ import time
 import random
 import os
 import argparse
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+import human_id
 
 
 class InstructionConstructor:
@@ -26,14 +29,24 @@ class InstructionConstructor:
         self.instr_dict = dict()
         self.instr_dest_dict = {n: set() for n in self.map_graph.nodes}
         self.last_id = 0  # record the last id in current instruction buffer
+
         self.loc_symbol = {0: 'office', 1: 'bedroom', 2: 'charge', 3: 'alley1', 4: 'alley2',
                            5: 'livingroom', 6: 'diningroom', 7: 'greet', 8: 'emergency'}
+
+        self.symptoms = {'fever', 'chill', 'headache', 'vomit', 'asthenia', 'dizziness', 'arthralgia', 'stomachache',
+                         'diarrhea', 'thirst', 'spasm', 'restlessness', 'cough', 'dizziness', 'anorexia', 'sneeze',
+                         'sore throat'}
+
+        self.analyser = SentimentIntensityAnalyzer()  # analyze human emotion sentiment
+
+        # human_dict = {'name':{'Name': Human()}, 'ip':{'192.168.0.xxx':'Name'}}
+        self.human_dict = human_id.load_human_info2dict(rospkg.RosPack().get_path('thesis') + '/human_info/')
 
         # ignore emergency tasks
         self.task_loc = [0, 1, 2, 5, 6, 7]
         self.task_priority = range(1,  5)  # 1~4
         self.task_duration = range(1, 10)  # 1~9
-        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96}  # 5: 0.98
+        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}
 
     def instr_cb(self, in_instructions):
         rospy.loginfo('instruction callback')
@@ -68,6 +81,45 @@ class InstructionConstructor:
         return
 
     def verbal_cb(self, voice_data):
+        def check_status(compound_score):
+            """
+            Convert emotion into status and reward
+            :param compound_score: emotional sentiment score from vader
+            :return: status, reward
+            """
+            if compound_score > 0.05:
+                return 0, 1
+            elif -0.05 < compound_score < 0.05:
+                return 1, 2
+            elif compound_score < -0.05:
+                return 2, 3
+            else:
+                rospy.logerr('Invalid sentiment.')
+                exit(1)
+
+        ver_instr = Instruction(id=self.last_id,
+                                type=0,
+                                source=human_id.identify_voice(self.human_dict['ip'], voice_data),
+                                destination=-1,
+                                status=-1)
+
+        words = voice_data.texts[0].split()
+
+        for w in words:  # Check physical status
+            if w in self.symptoms:
+                ver_instr.status = 3
+                ver_instr.r = 4.0
+                ver_instr.function = 9
+
+            elif w in self.human_dict['ip'].values():  # self.human_dict['ip'].values(): list of names
+                ver_instr.target = w
+                ver_instr.destination = self.human_dict['name'][w].location
+
+        if ver_instr.status == -1:  # Check sentiment of human if not physical
+            ver_instr.status, ver_instr.r = check_status(self.analyser.polarity_scores(words)['compound'])
+
+        ver_instr.b = self.b_dict[ver_instr.r]
+
         return
 
     def launch_instr(self):

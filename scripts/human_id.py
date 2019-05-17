@@ -396,7 +396,7 @@ def load_human_info2dict(human_info_dir):
         human_dict = dict()
         for h in h_list:
             name_dict[h.name] = h
-            ip_dict[h.ip] = h
+            ip_dict[h.ip] = h.name
 
         human_dict['name'] = name_dict
         human_dict['ip'] = ip_dict
