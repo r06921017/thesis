@@ -1,4 +1,4 @@
-int8 id             # instruction index
+int32 id             # instruction index
 float64 r           # initial reward
 float64 b           # decade factor
 bool type           # 0:human 1:robot
