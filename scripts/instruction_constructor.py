@@ -77,6 +77,7 @@ class InstructionConstructor:
                                                                                   instr.function,
                                                                                   instr.duration,
                                                                                   instr.r)
+        rospy.loginfo('Remaining tasks: {0}'.format(len(self.instr_dict)))
         print '--------------------------------------------------------------------------'
         return
 
