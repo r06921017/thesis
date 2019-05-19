@@ -62,7 +62,7 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFS):
             rospy.loginfo('Motion: Reach node {0}.'.format(self.next_node))
 
             if len(self.instr_dest_dict[self.cur_node]) > 0:
-                rospy.loginfo('self.instr_dest_dict[self.cur_node] = '.format(self.instr_dest_dict[self.cur_node]))
+                rospy.logdebug('self.instr_dest_dict[self.cur_node] = '.format(self.instr_dest_dict[self.cur_node]))
 
                 for idx in self.instr_dest_dict[self.cur_node]:
                     if idx == self.property_key:

@@ -30,7 +30,8 @@ class TaskMotionPlannerSF(TaskMotionPlannerPF):
             _property_dict = dict()
 
             for _, instr in self.instr_dict.iteritems():
-                _property_dict[instr.id] = instr.duration + self.shortest_path[instr.destination, self.cur_node]
+                _property_dict[instr.id] = instr.duration + \
+                                           self.shortest_path[instr.destination, self.cur_node]*self.time_step
             self.show_property(_property_dict)
 
             # Get the key(id) with the min value(r) in self.property_dict
