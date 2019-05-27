@@ -5,6 +5,8 @@ Solve task planning with dynamic programming (value iteration)
 """
 from task_motion_planner_fcfs import *
 import operator
+from robot_motions import *
+from std_msgs.msg import Int32
 
 
 class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
@@ -14,6 +16,12 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         """
         TaskMotionPlannerFCFS.__init__(self)
         self.shortest_path = nx.floyd_warshall_numpy(self.map_graph)
+
+        # for real world motion
+        self.motion_sub = rospy.Subscriber('/thesis/next_node', Int32, self.nav_cb, queue_size=5)
+        self.sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)  # type: SimpleActionClient
+        self.move_lock = False
+
         print '----------------------------------------'
         print self.shortest_path
         print self.shortest_path.shape
@@ -91,6 +99,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                 # Create reward_dict = {'id (int)': 'reward (float)'}
                 reward_dict = dict()
                 for idx in self.instr_dest_dict[self.cur_node]:
+                    # Check two-stage instruction
                     if self.instr_dict[idx].prev_id not in self.instr_dict.keys():
                         reward_dict[self.instr_dict[idx].id] = self.instr_dict[idx].r
 
@@ -121,6 +130,98 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         else:
             rospy.loginfo('Motion: from {0} to {1}'.format(self.cur_node, self.next_node))
             self.move_adjacency_node(self.next_node, sim=False, render=True)
+
+        return
+
+    def plan_motion(self):
+        if self.cur_node == self.next_node:
+            rospy.loginfo('Motion: Reach node {0}.'.format(self.next_node))
+
+            if len(self.instr_dest_dict[self.cur_node]) > 0:
+                # Create reward_dict = {'id (int)': 'reward (float)'}
+                reward_dict = dict()
+                for idx in self.instr_dest_dict[self.cur_node]:
+                    if self.instr_dict[idx].prev_id not in self.instr_dict.keys():
+                        reward_dict[self.instr_dict[idx].id] = self.instr_dict[idx].r
+
+                # Sort the instructions with the max reward
+                for r in sorted(reward_dict.items(), key=operator.itemgetter(1), reverse=True):
+                    do_instr = self.instr_dict[r[0]]
+                    rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
+
+                    del self.instr_dict[r[0]]
+                    self.show_instr()
+
+                # Reset the set when all the tasks in the instructions are done.
+                self.instr_dest_dict[self.cur_node].clear()
+                rospy.logdebug('self.instr_dest_dict: {0}'.format(self.instr_dest_dict))
+
+                # Convert undo_tasks to a list() and publish to /thesis/instruction_buffer
+                undo_instr_list = list()
+                for key, value in self.instr_dict.iteritems():
+                    undo_instr_list.append(value)
+
+                self.task_pub.publish(undo_instr_list)
+
+            else:
+                rospy.loginfo('No instructions on task {0}'.format(self.cur_node))
+                if len(self.instr_dict) > 0:
+                    self.plan_task(self.instr_dict)
+
+        else:
+            rospy.loginfo('Motion: from {0} to {1}'.format(self.cur_node, self.next_node))
+            self.move_adjacency_node(self.next_node, sim=False, render=True)
+
+        return
+
+    def nav_cb(self, in_next_node):
+        """
+
+        :param in_next_node: next_node from task planner
+        :return:
+        """
+        # Moving toward node
+        if self.move_lock:
+            shutdown(self.sac)
+        else:
+            if in_next_node != self.next_node:
+                shutdown(self.sac)
+                simple_move_base(self.sac, loc[in_next_node][0], loc[in_next_node][1], loc[in_next_node][2])
+                self.cur_node = self.next_node
+                self.move_lock = True
+
+        # Reach node
+        if len(self.instr_dest_dict[self.cur_node]) > 0:
+            # Create reward_dict = {'id (int)': 'reward (float)'}
+            reward_dict = dict()
+            for idx in self.instr_dest_dict[self.cur_node]:
+                # Check two-stage instruction
+                if self.instr_dict[idx].prev_id not in self.instr_dict.keys():
+                    reward_dict[self.instr_dict[idx].id] = self.instr_dict[idx].r
+
+            # Sort the instructions with the max reward
+            for r in sorted(reward_dict.items(), key=operator.itemgetter(1), reverse=True):
+                do_instr = self.instr_dict[r[0]]
+                rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
+                rospy.sleep(do_instr.duration)
+                del self.instr_dict[r[0]]
+                self.show_instr()
+
+            # Reset the set when all the tasks in the instructions are done.
+            self.instr_dest_dict[self.cur_node].clear()
+            rospy.logdebug('self.instr_dest_dict: {0}'.format(self.instr_dest_dict))
+
+            # Convert undo_tasks to a list() and publish to /thesis/instruction_buffer
+            undo_instr_list = list()
+            for key, value in self.instr_dict.iteritems():
+                undo_instr_list.append(value)
+
+            self.task_pub.publish(undo_instr_list)
+
+        else:
+            rospy.loginfo('No instructions on task {0}'.format(self.cur_node))
+            if len(self.instr_dict) > 0:
+                self.plan_task(self.instr_dict)
 
         return
 
