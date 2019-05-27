@@ -32,7 +32,7 @@ if __name__ == '__main__':
     map_graph.add_node(3, pos=(8, 8))
     map_graph.add_node(4, pos=(8, 2))
     map_graph.add_node(5, pos=(0, 2))
-    map_graph.add_node(6, pos=(12, 1))
+    map_graph.add_node(6, pos=(12, 2))
     map_graph.add_node(7, pos=(0, 0))
     map_graph.add_node(8, pos=(8, 0))
 
@@ -44,28 +44,18 @@ if __name__ == '__main__':
     map_graph.add_edge(3, 4, weight=6)
     map_graph.add_edge(4, 5, weight=8)
     map_graph.add_edge(4, 6, weight=4)
-    map_graph.add_edge(4, 7, weight=8)
     map_graph.add_edge(4, 8, weight=2)
     map_graph.add_edge(5, 7, weight=2)
-    map_graph.add_edge(5, 8, weight=8)
     map_graph.add_edge(6, 8, weight=4)
     map_graph.add_edge(7, 8, weight=8)
 
     # Run Floyd Warshall algorithm for shortest path.
-    short_path = nx.floyd_warshall_numpy(map_graph)
-    np.save(file=pkg_dir+'/config/shortest_path.npy', arr=short_path, allow_pickle=True)
-    print '=== shortest path matrix ===\n', short_path
-    adjacency_matrix = nx.convert_matrix.to_numpy_array(map_graph)
-    print '=== adjacency matrix ===\n', adjacency_matrix
-    np.save(file=pkg_dir+'/config/adjacency_matrix.npy', arr=adjacency_matrix, allow_pickle=True)
-
-    # Draw weighted graph G
-    pos = nx.get_node_attributes(map_graph, 'pos')
-    weight_label = nx.get_edge_attributes(map_graph, 'weight')
-    nx.draw(map_graph, pos, with_labels=True, node_size=300, node_color='orange')
-    nx.draw_networkx_edge_labels(map_graph, pos, edge_labels=weight_label)
-    plt.savefig(pkg_dir + '/config/weighted_graph.png')
-    plt.clf()
+    # short_path = nx.floyd_warshall_numpy(map_graph)
+    # np.save(file=pkg_dir+'/config/shortest_path.npy', arr=short_path, allow_pickle=True)
+    # print '=== shortest path matrix ===\n', short_path
+    # adjacency_matrix = nx.convert_matrix.to_numpy_array(map_graph)
+    # print '=== adjacency matrix ===\n', adjacency_matrix
+    # np.save(file=pkg_dir+'/config/adjacency_matrix.npy', arr=adjacency_matrix, allow_pickle=True)
 
     # Create main graph for AI center
     node_graph = nx.Graph()
@@ -103,14 +93,15 @@ if __name__ == '__main__':
     task_node = [n for n in node_graph.nodes if node_graph.nodes[n]['task']]  # nodes for adding tasks
     task_graph = node_graph.subgraph(task_node)
 
-    color_list = ['orange' if node_graph.nodes[n]['task'] else 'brown' for n in node_graph.nodes]
+    color_list = ['#6699ff' if node_graph.nodes[n]['task'] else '#6699ff' for n in node_graph.nodes]
     r_color_list = ['yellow' if node_graph.nodes[n]['robot'] else color_list[i] for i, n in enumerate(node_graph.nodes)]
-    size_list = [800 if node_graph.nodes[n]['task'] else 200 for n in node_graph.nodes]
+    size_list = [1400 if node_graph.nodes[n]['task'] else 600 for n in node_graph.nodes]
     label_list = [True if node_graph.nodes[n]['task'] else False for n in node_graph.nodes]
 
     # draw origin node
+    plt.figure(num=None, figsize=(12, 8), dpi=80, facecolor='w', edgecolor='k')
     pos_node_graph = nx.get_node_attributes(node_graph, 'pos')
-    nx.draw(node_graph, pos_node_graph, with_labels=False, node_size=size_list, node_color=r_color_list)
+    nx.draw(node_graph, pos_node_graph, with_labels=False, node_size=size_list, node_color=color_list)
 
     node_label = {}
     for n in task_graph.nodes:
@@ -120,9 +111,20 @@ if __name__ == '__main__':
     plt.savefig(pkg_dir + "/config/node_graph.png")
     plt.clf()
 
+    # Draw weighted graph G
+    plt.figure(num=None, figsize=(12, 8), dpi=80, facecolor='w', edgecolor='k')
+    pos = nx.get_node_attributes(map_graph, 'pos')
+    weight_label = nx.get_edge_attributes(map_graph, 'weight')
+    nx.draw(map_graph, pos, with_labels=False, node_size=1400, node_color='#6699ff')
+    nx.draw_networkx_edge_labels(map_graph, pos, edge_labels=weight_label, font_size=20)
+    nx.draw_networkx_labels(map_graph, pos_node_graph, labels=node_label)
+
+    plt.savefig(pkg_dir + '/config/weighted_graph.png')
+    plt.clf()
+
     # draw value graph
-    nx.draw(node_graph, pos_node_graph, with_labels=False, node_size=size_list, node_color=r_color_list)
-    value_labels = nx.get_node_attributes(node_graph, 'value')
-    nx.draw_networkx_labels(node_graph, pos_node_graph, labels=value_labels)
+    nx.draw(node_graph, pos_node_graph, with_labels=False, node_size=size_list, node_color=color_list)
+    # value_labels = nx.get_node_attributes(node_graph, 'value')
+    # nx.draw_networkx_labels(node_graph, pos_node_graph, labels=value_labels)
     plt.savefig(pkg_dir + '/config/value_graph.png')
     plt.clf()
