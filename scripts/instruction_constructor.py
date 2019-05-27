@@ -21,7 +21,7 @@ import human_id
 class InstructionConstructor:
     def __init__(self):
         self.instr_sub = rospy.Subscriber('/thesis/instruction_buffer', InstructionArray, self.instr_cb, queue_size=10)
-        self.verbal_sub = rospy.Subscriber('/thesis/verbal_buffer', VoiceMessage, self.verbal_cb, queue_size=10)
+        self.verbal_sub = rospy.Subscriber('/Tablet/voice', VoiceMessage, self.verbal_cb, queue_size=10)
         self.temp_sub = rospy.Subscriber('/thesis/int_buffer', Int8, self.int_cb, queue_size=10)
 
         self.instr_pub = rospy.Publisher('/thesis/instruction_buffer', InstructionArray, queue_size=1)
@@ -37,6 +37,30 @@ class InstructionConstructor:
                          'diarrhea', 'thirst', 'spasm', 'restlessness', 'cough', 'dizziness', 'anorexia', 'sneeze',
                          'sore throat'}
 
+        self.obj_set = {'tvmonitor', 'book', 'chair', 'laptop', 'mouse', 'cell phone', 'bed', 'sofa', 'book',
+                        'pottedplant', 'tvmonitor', 'remote', 'diningtable', 'toaster', 'fork', 'bowl', 'spoon',
+                        'knife', 'cup', 'bowl', 'chair'}
+
+        trigger_words = [{'chat', 'talk'},  # chat, encourage
+                         self.obj_set,  # remind object
+                         {'schedule'},  # remind schedule
+                         {'status'},  # check human
+                         {'music', 'song', 'video'},  # play music, video
+                         {'game'},  # play game
+                         self.symptoms]  # emergency
+
+        trigger_instr = [{1},
+                         {2},
+                         {3},
+                         {4},
+                         {6},
+                         {7},
+                         {8}]
+
+        self.verbal_instr = zip(trigger_words, trigger_instr)
+        del trigger_words
+        del trigger_instr
+
         self.analyser = SentimentIntensityAnalyzer()  # analyze human emotion sentiment
 
         # human_dict = {'name':{'Name': Human()}, 'ip':{'192.168.0.xxx':'Name'}}
@@ -44,18 +68,30 @@ class InstructionConstructor:
 
         # ignore emergency tasks
         self.task_loc = [0, 1, 2, 5, 6, 7]
-        self.task_priority = range(1,  5)  # 1~4
+        self.task_priority = range(1, 5)  # 1~4
         self.task_duration = range(1, 10)  # 1~9
-        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}
+        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5:0.98}
+        self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 5, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}
 
     def instr_cb(self, in_instructions):
         rospy.loginfo('instruction callback')
         self.instr_dict = dict()
+
         # Convert InstructionArray into dictionary
         if type(in_instructions) == thesis.msg._InstructionArray.InstructionArray:
+
+            print '***************************************************'
+            print in_instructions
+            print '***************************************************'
+
             for instr in in_instructions.data:
                 self.instr_dest_dict[instr.destination].add(instr.id)
                 self.instr_dict[instr.id] = instr
+
+            print 'self.instr_dict: ', self.instr_dict
+
+            self.last_id = max(self.instr_dict.keys()) + 1
+
         rospy.loginfo('After instruction callback ...')
         self.show_instr()
         return
@@ -82,45 +118,61 @@ class InstructionConstructor:
         return
 
     def verbal_cb(self, voice_data):
-        def check_status(compound_score):
+        def check_emotion(compound_score):
             """
             Convert emotion into status and reward
             :param compound_score: emotional sentiment score from vader
-            :return: status, reward
+            :return: emotions (0:positive, 1:neutral, 2:negative)
             """
-            if compound_score > 0.05:
-                return 0, 1
-            elif -0.05 < compound_score < 0.05:
-                return 1, 2
-            elif compound_score < -0.05:
-                return 2, 3
+            if compound_score > 0.05:  # positive
+                return 0
+            elif -0.05 < compound_score < 0.05:  # neutral
+                return 1
+            elif compound_score < -0.05:  # negative
+                return 2
             else:
                 rospy.logerr('Invalid sentiment.')
                 exit(1)
 
-        ver_instr = Instruction(id=self.last_id,
-                                type=0,
-                                source=human_id.identify_voice(self.human_dict['ip'], voice_data),
-                                destination=-1,
-                                status=-1)
-
         words = voice_data.texts[0].split()
 
-        for w in words:  # Check physical status
-            if w in self.symptoms:
-                ver_instr.status = 3
-                ver_instr.r = 4.0
-                ver_instr.function = 9
+        instr_source = human_id.identify_voice(self.human_dict['ip'], voice_data)
+        emotion = check_emotion(self.analyser.polarity_scores(voice_data.texts[0])['compound'])
 
-            elif w in self.human_dict['ip'].values():  # self.human_dict['ip'].values(): list of names
-                ver_instr.target = w
-                ver_instr.destination = self.human_dict['name'][w].location
+        # Check target of the instruction
+        instr_target = None
+        for w in words:
+            if w in self.human_dict['ip'].values():
+                instr_target = w
 
-        if ver_instr.status == -1:  # Check sentiment of human if not physical
-            ver_instr.status, ver_instr.r = check_status(self.analyser.polarity_scores(words)['compound'])
+        if instr_target is None:
+            instr_target = instr_source
 
-        ver_instr.b = self.b_dict[ver_instr.r]
+        # Check function
+        for w in words:
+            for ver_i in self.verbal_instr:
+                if w in ver_i[0]:
+                    print ver_i[1]
 
+                    for f_idx in ver_i[1]:
+                        # Check target for verbal instruction
+                        if f_idx == 8:
+                            emotion = 3
+
+                        temp_instr = Instruction(id=self.last_id,
+                                                 r=emotion,
+                                                 b=self.b_dict[emotion+2],
+                                                 type=0,
+                                                 duration=int(f_idx*5 + 3),
+                                                 source=instr_source,
+                                                 status=emotion,
+                                                 function=f_idx,
+                                                 target=instr_target,
+                                                 destination=self.human_dict['name'][instr_target].location)
+                        self.last_id += 1
+                        self.instr_dict[temp_instr.id] = temp_instr
+
+        self.launch_instr()
         return
 
     def launch_instr(self):
@@ -189,6 +241,15 @@ class InstructionConstructor:
 
         return
 
+    def run(self):
+        while not rospy.is_shutdown():
+            try:
+                self.show_instr()
+            except rospy.ROSException:  # timeout
+                pass
+            time.sleep(0.5)
+        return
+
 
 if __name__ == '__main__':
     rospy.init_node(os.path.basename(__file__).split('.')[0], anonymous=True, log_level=rospy.INFO)
@@ -206,4 +267,5 @@ if __name__ == '__main__':
         exit(1)
 
     instr_constructor = InstructionConstructor()
-    instr_constructor.test_scenario()
+    instr_constructor.run()
+    # instr_constructor.test_scenario()

@@ -21,13 +21,17 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
     def plan_task(self, in_instructions):
         rospy.loginfo('Start task planning!')
-        # Convert InstructionArray into dictionary
 
+        # Convert InstructionArray into dictionary
         if type(in_instructions) == thesis.msg._InstructionArray.InstructionArray:
             for instr in in_instructions.data:
                 self.instr_dest_dict[instr.destination].add(instr.id)
                 self.instr_dict[instr.id] = instr
                 # rospy.sleep(0.001)
+            print 'self.instr_dict: ', self.instr_dict
+            self.last_id = max(self.instr_dict.keys()) + 1
+
+        rospy.logdebug('len(self.instr_dict.keys()): {0}'.format(len(self.instr_dict.keys())))
 
         if len(self.instr_dict.keys()) > 0:  # if there exists instructions
             if len(self.instr_dest_dict[self.cur_node]) > 0:
@@ -81,6 +85,21 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                     do_instr = self.instr_dict[r[0]]
                     rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
                     rospy.sleep(do_instr.duration)
+
+                    if do_instr.function == 4:
+                        temp_instr = Instruction(id=self.last_id,
+                                                 r=do_instr.r,
+                                                 b=do_instr.b,
+                                                 type=do_instr.type,
+                                                 duration=do_instr.duration,
+                                                 source=do_instr.source,
+                                                 status=do_instr.status,
+                                                 function=9,
+                                                 target=do_instr.source,
+                                                 destination=self.human_dict['name'][do_instr.source].location)
+                        self.instr_dict[temp_instr.id] = temp_instr
+                        self.instr_dest_dict[temp_instr.destination].add(temp_instr.id)
+
                     del self.instr_dict[r[0]]
                     self.show_instr()
 

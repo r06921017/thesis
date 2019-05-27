@@ -11,12 +11,18 @@ from std_msgs.msg import String
 from node_viz import create_map_graph
 import numpy as np
 import networkx as nx
+import human_id
 
 
 class TaskMotionPlannerFCFS:
     def __init__(self):
-        self.sub = rospy.Subscriber('/thesis/instruction_buffer', InstructionArray, self.plan_task, queue_size=1)
+        self.sub = rospy.Subscriber('/thesis/instruction_buffer', InstructionArray, self.plan_task, queue_size=5)
         self.task_pub = rospy.Publisher('/thesis/instruction_buffer', InstructionArray, queue_size=1)
+
+        # for two-stage instruction ('check status' from caregiver)
+        # human_dict = {'name':{'Name': Human()}, 'ip':{'192.168.0.xxx':'Name'}}
+        self.human_dict = human_id.load_human_info2dict(rospkg.RosPack().get_path('thesis') + '/human_info/')
+        self.last_id = 0
 
         # for TAMP
         self.map_graph = create_map_graph()
@@ -66,6 +72,7 @@ class TaskMotionPlannerFCFS:
             for instr in in_instructions.data:
                 self.instr_dest_dict[instr.destination].add(instr.id)
                 self.instr_dict[instr.id] = instr
+            self.last_id = max(self.instr_dict.keys())
 
         self.show_instr()
 
