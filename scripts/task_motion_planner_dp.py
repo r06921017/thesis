@@ -19,6 +19,35 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         print self.shortest_path.shape
         print '----------------------------------------'
 
+    def value_iter(self):
+        # Compare the accumulated reward of neighbor, move to the maximum one.
+        neighbor_node = np.where(np.array(self.cur_neighbor) > 0)[0].tolist()
+        candidate_steps = dict()  # {neighbor_node: {'reward': float, 'neighbor': np.array}}
+
+        for n in neighbor_node:
+            temp_neighbor = self.move_adjacency_node(n)  # assuming moving toward the neighbor node n.
+            temp_neighbor_node = np.where(np.array(temp_neighbor) > 0)[0].tolist()
+            rospy.logdebug('temp_neighbor_node = {0}'.format(temp_neighbor_node))
+
+            # Calculate accumulated reward of a candidate step from all instructions
+            total_reward = 0.0
+            for _, instr in self.instr_dict.iteritems():
+                if instr.prev_id not in self.instr_dict.keys():
+                    # Possible distances from instr to candidate steps
+                    temp_dis = np.zeros(len(temp_neighbor_node)).astype(float)
+                    for j, temp_n in enumerate(temp_neighbor_node):
+                        temp_dis[j] = self.shortest_path[instr.destination, temp_n] + temp_neighbor[temp_n]
+
+                    total_reward += instr.r * pow(instr.b, np.min(temp_dis))
+
+            rospy.logdebug('total reward in candidate node {0}: {1}'.format(n, total_reward))
+
+            candidate_steps[n] = {'reward': total_reward, 'neighbor': temp_neighbor}
+
+        # Pick the node with maximum accumulated reward
+        self.next_node = max(candidate_steps, key=lambda x: candidate_steps[x]['reward'])
+        return
+
     def plan_task(self, in_instructions):
         rospy.loginfo('Start task planning!')
 
@@ -27,43 +56,28 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
             for instr in in_instructions.data:
                 self.instr_dest_dict[instr.destination].add(instr.id)
                 self.instr_dict[instr.id] = instr
-                # rospy.sleep(0.001)
+
             print 'self.instr_dict: ', self.instr_dict
-            self.last_id = max(self.instr_dict.keys()) + 1
 
         rospy.logdebug('len(self.instr_dict.keys()): {0}'.format(len(self.instr_dict.keys())))
 
         if len(self.instr_dict.keys()) > 0:  # if there exists instructions
             if len(self.instr_dest_dict[self.cur_node]) > 0:
-                self.next_node = self.cur_node
+                # for two-stage instruction
+                temp_count = 0
+                for instr_id in self.instr_dest_dict[self.cur_node]:
+                    if self.instr_dict[instr_id].prev_id in self.instr_dict.keys():
+                        temp_count += 1
+                if temp_count == len(self.instr_dest_dict[self.cur_node]):
+                    self.value_iter()
+                else:
+                    self.next_node = self.cur_node
+
+                # for single stage instruction
+                # self.next_node = self.cur_node
 
             else:
-                # Compare the accumulated reward of neighbor, move to the maximum one.
-                neighbor_node = np.where(np.array(self.cur_neighbor) > 0)[0].tolist()
-                candidate_steps = dict()  # {neighbor_node: {'reward': float, 'neighbor': np.array}}
-
-                for n in neighbor_node:
-                    temp_neighbor = self.move_adjacency_node(n)  # assuming moving toward the neighbor node n.
-                    temp_neighbor_node = np.where(np.array(temp_neighbor) > 0)[0].tolist()
-                    rospy.logdebug('temp_neighbor_node = {0}'.format(temp_neighbor_node))
-
-                    # Calculate accumulated reward of a candidate step from all instructions
-                    total_reward = 0.0
-                    for _, instr in self.instr_dict.iteritems():
-                        # Possible distances from instr to candidate steps
-                        temp_dis = np.zeros(len(temp_neighbor_node)).astype(float)
-                        for j, temp_n in enumerate(temp_neighbor_node):
-                            temp_dis[j] = self.shortest_path[instr.destination, temp_n] + temp_neighbor[temp_n]
-
-                        total_reward += instr.r * pow(instr.b, np.min(temp_dis))
-                        # print 'max reward of task {0}: {1}'.format(instr.id, instr.r * pow(instr.b, np.min(temp_dis)))
-
-                    rospy.logdebug('total reward in candidate node {0}: {1}'.format(n, total_reward))
-
-                    candidate_steps[n] = {'reward': total_reward, 'neighbor': temp_neighbor}
-
-                # Pick the node with maximum accumulated reward
-                self.next_node = max(candidate_steps, key=lambda x: candidate_steps[x]['reward'])
+                self.value_iter()
 
             rospy.loginfo('plan_task result: {0}'.format(self.next_node))
 
@@ -77,29 +91,14 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                 # Create reward_dict = {'id (int)': 'reward (float)'}
                 reward_dict = dict()
                 for idx in self.instr_dest_dict[self.cur_node]:
-                    _instr = self.instr_dict[idx]
-                    reward_dict[_instr.id] = _instr.r
+                    if self.instr_dict[idx].prev_id not in self.instr_dict.keys():
+                        reward_dict[self.instr_dict[idx].id] = self.instr_dict[idx].r
 
                 # Sort the instructions with the max reward
                 for r in sorted(reward_dict.items(), key=operator.itemgetter(1), reverse=True):
                     do_instr = self.instr_dict[r[0]]
                     rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
                     rospy.sleep(do_instr.duration)
-
-                    if do_instr.function == 4:
-                        temp_instr = Instruction(id=self.last_id,
-                                                 r=do_instr.r,
-                                                 b=do_instr.b,
-                                                 type=do_instr.type,
-                                                 duration=do_instr.duration,
-                                                 source=do_instr.source,
-                                                 status=do_instr.status,
-                                                 function=9,
-                                                 target=do_instr.source,
-                                                 destination=self.human_dict['name'][do_instr.source].location)
-                        self.instr_dict[temp_instr.id] = temp_instr
-                        self.instr_dest_dict[temp_instr.destination].add(temp_instr.id)
-
                     del self.instr_dict[r[0]]
                     self.show_instr()
 

@@ -8,3 +8,4 @@ int8 status         # -1: None, human: emotion(0~3), robot: human action(0~11)
 int8 function       # 0:NOP, 1:chat(encourage), 2:remind object, 3:remind schedule, 4:check human, 5:charge, 6: play videos, 7:play game, 8:emergency, 9:report to source
 string target       # person or object that robot interact to
 int8 destination    # -1: None, 0:office, 1:bedroom, 2:charge, 3:alley, 4:living, 5:dining, 6: greeting, 7: emergency
+int32 prev_id       # previous instruction id for sequential tasks

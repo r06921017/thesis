@@ -16,6 +16,7 @@ import os
 import argparse
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import human_id
+import copy
 
 
 class InstructionConstructor:
@@ -49,13 +50,13 @@ class InstructionConstructor:
                          {'game'},  # play game
                          self.symptoms]  # emergency
 
-        trigger_instr = [{1},
-                         {2},
-                         {3},
-                         {4},
-                         {6},
-                         {7},
-                         {8}]
+        trigger_instr = [[1],
+                         [2],
+                         [3],
+                         [4, 9],
+                         [6],
+                         [7],
+                         [8]]
 
         self.verbal_instr = zip(trigger_words, trigger_instr)
         del trigger_words
@@ -80,17 +81,9 @@ class InstructionConstructor:
         # Convert InstructionArray into dictionary
         if type(in_instructions) == thesis.msg._InstructionArray.InstructionArray:
 
-            print '***************************************************'
-            print in_instructions
-            print '***************************************************'
-
             for instr in in_instructions.data:
                 self.instr_dest_dict[instr.destination].add(instr.id)
                 self.instr_dict[instr.id] = instr
-
-            print 'self.instr_dict: ', self.instr_dict
-
-            self.last_id = max(self.instr_dict.keys()) + 1
 
         rospy.loginfo('After instruction callback ...')
         self.show_instr()
@@ -148,29 +141,52 @@ class InstructionConstructor:
         if instr_target is None:
             instr_target = instr_source
 
+        last_id_buf = copy.copy(self.last_id)
+
         # Check function
         for w in words:
             for ver_i in self.verbal_instr:
                 if w in ver_i[0]:
                     print ver_i[1]
 
-                    for f_idx in ver_i[1]:
-                        # Check target for verbal instruction
-                        if f_idx == 8:
+                    for i in range(len(ver_i[1])):
+                        if ver_i[1][i] == 8:  # physical request
                             emotion = 3
+
+                        if ver_i[1][i] == 9:  # report to source
+                            temp_des = self.human_dict['name'][instr_source].location
+                        else:
+                            temp_des = self.human_dict['name'][instr_target].location
 
                         temp_instr = Instruction(id=self.last_id,
                                                  r=emotion,
                                                  b=self.b_dict[emotion+2],
                                                  type=0,
-                                                 duration=int(f_idx*5 + 3),
+                                                 duration=self.dur_dict[ver_i[1][i]],
                                                  source=instr_source,
                                                  status=emotion,
-                                                 function=f_idx,
+                                                 function=ver_i[1][i],
                                                  target=instr_target,
-                                                 destination=self.human_dict['name'][instr_target].location)
+                                                 destination=temp_des,
+                                                 prev_id=self.last_id-1 if i > 0 else -1)
+
                         self.last_id += 1
                         self.instr_dict[temp_instr.id] = temp_instr
+
+        if last_id_buf == self.last_id:  # NOP for not detecting key words
+            temp_instr = Instruction(id=self.last_id,
+                                     r=emotion,
+                                     b=self.b_dict[emotion + 2],
+                                     type=0,
+                                     duration=self.dur_dict[0],
+                                     source=instr_source,
+                                     status=emotion,
+                                     function=0,
+                                     target=instr_target,
+                                     destination=self.human_dict['name'][instr_target].location,
+                                     prev_id=-1)
+            self.last_id += 1
+            self.instr_dict[temp_instr.id] = temp_instr
 
         self.launch_instr()
         return
@@ -212,7 +228,7 @@ class InstructionConstructor:
 
         for i in range(max_num):
             temp_i = Instruction(id=self.last_id, type=0, duration=d_list[i], source='Charlie', status=0,
-                                 r=r_list[i], b=b_list[i], function=0, target='Bob', destination=des_ls[i])
+                                 r=r_list[i], b=b_list[i], function=0, target='Bob', destination=des_ls[i], prev_id=-1)
             self.instr_dict[self.last_id] = temp_i
             self.last_id += 1
 
