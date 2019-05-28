@@ -27,8 +27,9 @@ if '/move_base' not in rosnode.get_node_names():
     rospy.loginfo('Start move_base.')
     subprocess.call('~/catkin_ws/src/thesis/scripts/start_move_base.sh', shell=True)
     time.sleep(1.5)
+rospy.loginfo('move_base launch!')
 
-rospy.wait_for_service('/move_base/make_plan', timeout=30)
+rospy.wait_for_service('/move_base/make_plan', timeout=5)
 get_global_path = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
 
 cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
@@ -69,29 +70,31 @@ loc = [[office_x, office_y, office_yaw],
        [emer_x, emer_y, emer_yaw]]
 
 # Naoqi setting
-if rospy.has_param("Pepper_ip"):
-    pepper_ip = rospy.get_param("Pepper_ip")
-else:
-    print 'Pepper_ip is not given'
-    pepper_ip = '192.168.0.152'
-print 'Pepper_ip = ', pepper_ip
+use_pepper = False
+if use_pepper:
+    if rospy.has_param("Pepper_ip"):
+        pepper_ip = rospy.get_param("Pepper_ip")
+    else:
+        print 'Pepper_ip is not given'
+        pepper_ip = '192.168.0.152'
+    print 'Pepper_ip = ', pepper_ip
 
-session = qi.Session()
+    session = qi.Session()
 
-try:
-    session.connect("tcp://" + pepper_ip + ":" + str(9559))
-except RuntimeError:
-    print("tcp://" + pepper_ip + "\"on port" + str(9559) + ".")
-    print("Please check your script arguments. Run with -h option for help.")
-    sys.exit(1)
+    try:
+        session.connect("tcp://" + pepper_ip + ":" + str(9559))
+    except RuntimeError:
+        print("tcp://" + pepper_ip + "\"on port" + str(9559) + ".")
+        print("Please check your script arguments. Run with -h option for help.")
+        sys.exit(1)
 
-motion_service = session.service("ALMotion")
-posture_service = session.service("ALRobotPosture")
-tts_service = session.service('ALTextToSpeech')
-tts_service.setLanguage('English')
-asr_service = session.service("ALAnimatedSpeech")
-tablet_service = session.service("ALTabletService")
-tablet_service.enableWifi()  # ensure that the tablet wifi is enable
+    motion_service = session.service("ALMotion")
+    posture_service = session.service("ALRobotPosture")
+    tts_service = session.service('ALTextToSpeech')
+    tts_service.setLanguage('English')
+    asr_service = session.service("ALAnimatedSpeech")
+    tablet_service = session.service("ALTabletService")
+    tablet_service.enableWifi()  # ensure that the tablet wifi is enable
 
 # End Naoqi setting
 

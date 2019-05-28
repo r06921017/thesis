@@ -272,6 +272,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Check roslaunch arg')
     parser.add_argument('--max_num', type=int, default=10)
     parser.add_argument('--is_rand', type=int, default=1)
+    parser.add_argument('--is_sim', type=int, default=0)
     args = parser.parse_args(rospy.myargv()[1:])
 
     if args.is_rand == 1:
@@ -283,5 +284,11 @@ if __name__ == '__main__':
         exit(1)
 
     instr_constructor = InstructionConstructor()
-    instr_constructor.run()
-    # instr_constructor.test_scenario()
+
+    if args.is_sim == 0:
+        instr_constructor.run()
+    elif args.is_sim == 1:
+        instr_constructor.test_scenario()
+    else:
+        rospy.logerr('is_sim only supports 0 or 1.')
+        exit(1)
