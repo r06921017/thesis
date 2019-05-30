@@ -5,7 +5,7 @@ import rospy
 import time
 import qi
 import os
-import datetime
+# import datetime
 import subprocess
 from math import atan2
 from numpy.linalg import norm
@@ -23,10 +23,9 @@ import pickle
 
 
 # Start move_base
-if '/move_base' not in rosnode.get_node_names():
-    rospy.loginfo('Start move_base.')
-    subprocess.call('~/catkin_ws/src/thesis/scripts/start_move_base.sh', shell=True)
-    time.sleep(1.5)
+rospy.loginfo('Start move_base.')
+subprocess.call('~/catkin_ws/src/thesis/scripts/start_move_base.sh', shell=True)
+rospy.sleep(1.5)
 rospy.loginfo('move_base launch!')
 
 rospy.wait_for_service('/move_base/make_plan', timeout=5)
@@ -39,15 +38,15 @@ goal_states = ['PENDING', 'ACTIVE', 'PREEMPTED',
                'PREEMPTING', 'RECALLING', 'RECALLED',
                'LOST']
 
-office_x, office_y, office_yaw = 0.716, -0.824, 1.927  # location: 0
-bedroom_x, bedroom_y, bedroom_yaw = 4.971, -0.005, 2.026  # 1
-charge_x, charge_y, charge_yaw = 5.024, -0.318, -2.935  # 2
+office_x, office_y, office_yaw = 2.045, -0.15, 2.45  # 0.716, -0.824, 1.927  # location: 0
+bedroom_x, bedroom_y, bedroom_yaw = 4.692, 0.329, 1.964  # 4.681, 0.271, 1.941  # 1
+charge_x, charge_y, charge_yaw = 4.487, -0.473, -2.693  # 5.024, -0.318, -2.935  # 2
 alley1_x, alley1_y, alley1_yaw = 3.827, -1.191, -1.164  # 3
 alley2_x, alley2_y, alley2_yaw = 5.140, -3.713, 2.017  # 4
-living_x, living_y, living_yaw = 3.397, -5.461, 1.927  # 5
-dining_x, dining_y, dining_yaw = 6.258, -3.560, 1.353  # 6
-greet_x, greet_y, greet_yaw = 2.959, -5.039, -0.491  # 7, greeting for welcome
-emer_x, emer_y, emer_yaw = 5.294, -3.869, -1.165  # 8, emergency
+living_x, living_y, living_yaw = 3.201, -5.051, 1.46  # 3.397, -5.461, 1.927  # 5
+dining_x, dining_y, dining_yaw = 6.172, -3.271, 1.496  # 6
+greet_x, greet_y, greet_yaw = 3.201, -5.051, -0.491  # 7, greeting for welcome
+emer_x, emer_y, emer_yaw = 5.065, -3.795, -1.195  # 8, emergency
 
 loc_symbol = {0: 'office',
               1: 'bedroom',
@@ -70,32 +69,29 @@ loc = [[office_x, office_y, office_yaw],
        [emer_x, emer_y, emer_yaw]]
 
 # Naoqi setting
-use_pepper = False
-if use_pepper:
-    if rospy.has_param("Pepper_ip"):
-        pepper_ip = rospy.get_param("Pepper_ip")
-    else:
-        print 'Pepper_ip is not given'
-        pepper_ip = '192.168.0.152'
-    print 'Pepper_ip = ', pepper_ip
+if rospy.has_param("Pepper_ip"):
+    pepper_ip = rospy.get_param("Pepper_ip")
+else:
+    print 'Pepper_ip is not given'
+    pepper_ip = '192.168.0.152'
+print 'Pepper_ip = ', pepper_ip
 
-    session = qi.Session()
+session = qi.Session()
 
-    try:
-        session.connect("tcp://" + pepper_ip + ":" + str(9559))
-    except RuntimeError:
-        print("tcp://" + pepper_ip + "\"on port" + str(9559) + ".")
-        print("Please check your script arguments. Run with -h option for help.")
-        sys.exit(1)
+try:
+    session.connect("tcp://" + pepper_ip + ":" + str(9559))
+except RuntimeError:
+    print("tcp://" + pepper_ip + "\"on port" + str(9559) + ".")
+    print("Please check your script arguments. Run with -h option for help.")
+    sys.exit(1)
 
-    motion_service = session.service("ALMotion")
-    posture_service = session.service("ALRobotPosture")
-    tts_service = session.service('ALTextToSpeech')
-    tts_service.setLanguage('English')
-    asr_service = session.service("ALAnimatedSpeech")
-    tablet_service = session.service("ALTabletService")
-    tablet_service.enableWifi()  # ensure that the tablet wifi is enable
-
+motion_service = session.service("ALMotion")
+posture_service = session.service("ALRobotPosture")
+tts_service = session.service('ALTextToSpeech')
+tts_service.setLanguage('English')
+asr_service = session.service("ALAnimatedSpeech")
+tablet_service = session.service("ALTabletService")
+tablet_service.enableWifi()  # ensure that the tablet wifi is enable
 # End Naoqi setting
 
 
@@ -158,14 +154,15 @@ def get_cur_pos(pos_topic, t):
         exit(1)
 
 
-def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=1.0, with_rotation_first=True):
-    print 'inflation_radius = ', inflation_radius
+def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_rotation_first=True):
+    rospy.loginfo('inflation_radius = {0}'.format(inflation_radius))
 
     # robot is static
-    cur_x, cur_y, cur_yaw = get_cur_pos('amcl_pose', 1)
-    print 'cur_x, cur_y, cur_yaw = ', cur_x, cur_y, cur_yaw
+    cur_x, cur_y, cur_yaw = get_cur_pos(pos_topic='amcl_pose', t=1)
+    rospy.loginfo('cur_x, cur_y, cur_yaw = {0} {1} {2}'.format(cur_x, cur_y, cur_yaw))
+    tan_yaw = atan2(dest_y-cur_y, dest_x-cur_x)
 
-    if not isin_dest(cur_x, cur_y, cur_yaw, dest_x, dest_y, dest_yaw):
+    if not isin_dest(cur_x, cur_y, cur_yaw, dest_x, dest_y, tan_yaw):
 
         start = PoseStamped()
         start.header.frame_id = 'map'
@@ -199,12 +196,17 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=1.0, with_r
                 next_location = [temp_global_path.plan.poses[4].pose.position.x,
                                  temp_global_path.plan.poses[4].pose.position.y]
 
-                theta = atan2(next_location[0] - cur_x, next_location[1] - cur_y)  # the angle to path direction
-                motion_service.moveTo(0.0, 0.0, (theta - cur_yaw + 0.20), 1)
+                theta = atan2(next_location[1] - cur_y, next_location[0] - cur_x)  # the angle to path direction
+                motion_service.moveTo(0.0, 0.0, (theta - cur_yaw), 1)
                 posture_service.goToPosture("StandInit", 0.5)
-                print 'rotation finish'
+                rospy.loginfo('rotation finish')
 
-            within_time = run_movebase(sac, dest_x, dest_y, dest_yaw)
+                # Update tan_yaw for smooth navigation
+                tan_yaw = atan2(temp_global_path.plan.poses[-2].pose.position.y - dest_y,
+                                temp_global_path.plan.poses[-2].pose.position.x - dest_x)
+
+            rospy.loginfo('tan_yaw = {0}'.format(tan_yaw))
+            within_time = run_movebase(sac, dest_x, dest_y, tan_yaw)
 
             if not within_time:
                 shutdown(sac)
@@ -234,7 +236,7 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=1.0, with_r
 
 def shutdown(sac):
     rospy.loginfo('Stopping the robot ...')
-    sac.cancle_goal()
+    sac.cancel_goal()
     rospy.sleep(2)
     cmd_vel_pub.publish(Twist())
     rospy.sleep(1)
@@ -242,17 +244,18 @@ def shutdown(sac):
 
 
 def run_movebase(sac, x, y, yaw):
+    rospy.loginfo('run_movebase start!')
     # Transform euler angle to quaternion
-    quat = quaternion_from_euler(0.0, 0.0, yaw)
+    _quat = quaternion_from_euler(0.0, 0.0, yaw)
 
     # create goal
     goal = MoveBaseGoal()
     goal.target_pose.pose.position.x = x
     goal.target_pose.pose.position.y = y
-    goal.target_pose.pose.orientation.x = quat[0]
-    goal.target_pose.pose.orientation.y = quat[1]
-    goal.target_pose.pose.orientation.z = quat[2]
-    goal.target_pose.pose.orientation.w = quat[3]
+    goal.target_pose.pose.orientation.x = _quat[0]
+    goal.target_pose.pose.orientation.y = _quat[1]
+    goal.target_pose.pose.orientation.z = _quat[2]
+    goal.target_pose.pose.orientation.w = _quat[3]
     goal.target_pose.header.frame_id = 'map'
     goal.target_pose.header.stamp = rospy.Time.now()
 
@@ -265,11 +268,13 @@ def run_movebase(sac, x, y, yaw):
 
 
 def isin_dest(rx, ry, ryaw, des_x, des_y, des_yaw):
-    if norm([rx - des_x, ry - des_y]) < 0.5 and abs(float(ryaw - des_yaw)) < 0.3:
-        print 'is in destination'
+    dist_th = 0.3  # 0.4
+    angle_th = 0.15  # 0.3
+    if norm([rx - des_x, ry - des_y]) < dist_th and abs(float(ryaw - des_yaw)) < angle_th:
+        rospy.loginfo('is in destination')
         return True
     else:
-        print 'not in destination'
+        rospy.loginfo('not in destination')
         return False
 
 
@@ -290,11 +295,28 @@ def set_initial_pose(x, y, yaw, init_location):
     initial_pose.pose.pose.orientation.z = z
     initial_pose.pose.pose.orientation.w = w
 
-    for i in range(10):
+    for i in range(5):
         initial_pose_pub.publish(initial_pose)
-        time.sleep(0.5)
+        rospy.sleep(0.1)
 
     rospy.set_param('/thesis/pepper_location', init_location)
 
-    print 'initial pose sent'
+    rospy.loginfo('initial pose sent!')
     return
+
+
+if __name__ == '__main__':
+    rospy.init_node('robot_motions', log_level=rospy.INFO)
+    rospy.loginfo('robot_motions start!')
+    rospy.sleep(0.2)
+
+    temp_symbol = 6
+    dest_symbol = 8
+    set_initial_pose(loc[temp_symbol][0], loc[temp_symbol][1], loc[temp_symbol][2], temp_symbol)
+    rospy.sleep(1)
+    temp_sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)  # type: SimpleActionClient
+
+    start_time = time.time()
+    simple_move_base(temp_sac, loc[dest_symbol][0], loc[dest_symbol][1], loc[dest_symbol][2])
+    motion_service.moveTo(0.0, 0.0, loc[dest_symbol][2]-get_cur_pos('/amcl_pose', 0.5)[2])
+    rospy.loginfo('Moving Time: {0}'.format(time.time() - start_time))
