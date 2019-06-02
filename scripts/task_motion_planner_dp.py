@@ -21,6 +21,8 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         self.motion_sub = rospy.Subscriber('/thesis/next_node', Int32, self.nav_cb, queue_size=5)
         self.sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)  # type: SimpleActionClient
         self.move_lock = False
+        self.robot_x, self.robot_y, _ = get_cur_pos(pos_topic='/amcl_pose', t=0.2)
+        self.dis_unit = 0.2
 
         print '----------------------------------------'
         print self.shortest_path
@@ -133,47 +135,6 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
         return
 
-    def plan_motion(self):
-        if self.cur_node == self.next_node:
-            rospy.loginfo('Motion: Reach node {0}.'.format(self.next_node))
-
-            if len(self.instr_dest_dict[self.cur_node]) > 0:
-                # Create reward_dict = {'id (int)': 'reward (float)'}
-                reward_dict = dict()
-                for idx in self.instr_dest_dict[self.cur_node]:
-                    if self.instr_dict[idx].prev_id not in self.instr_dict.keys():
-                        reward_dict[self.instr_dict[idx].id] = self.instr_dict[idx].r
-
-                # Sort the instructions with the max reward
-                for r in sorted(reward_dict.items(), key=operator.itemgetter(1), reverse=True):
-                    do_instr = self.instr_dict[r[0]]
-                    rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
-
-                    del self.instr_dict[r[0]]
-                    self.show_instr()
-
-                # Reset the set when all the tasks in the instructions are done.
-                self.instr_dest_dict[self.cur_node].clear()
-                rospy.logdebug('self.instr_dest_dict: {0}'.format(self.instr_dest_dict))
-
-                # Convert undo_tasks to a list() and publish to /thesis/instruction_buffer
-                undo_instr_list = list()
-                for key, value in self.instr_dict.iteritems():
-                    undo_instr_list.append(value)
-
-                self.task_pub.publish(undo_instr_list)
-
-            else:
-                rospy.loginfo('No instructions on task {0}'.format(self.cur_node))
-                if len(self.instr_dict) > 0:
-                    self.plan_task(self.instr_dict)
-
-        else:
-            rospy.loginfo('Motion: from {0} to {1}'.format(self.cur_node, self.next_node))
-            self.move_adjacency_node(self.next_node, sim=False, render=True)
-
-        return
-
     def nav_cb(self, in_next_node):
         """
 
@@ -222,6 +183,22 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
             rospy.loginfo('No instructions on task {0}'.format(self.cur_node))
             if len(self.instr_dict) > 0:
                 self.plan_task(self.instr_dict)
+
+        return
+
+    def pos_cb(self, r_amcl):
+        rospy.loginfo('pos_cb!')
+        move_dis = norm(r_amcl.pose.pose.position.x-self.robot_x, r_amcl.pose.pose.position.y-self.robot_y)
+
+        rospy.loginfo('cur_pos: {0}, {1}'.format(r_amcl.pose.pose.position.x, r_amcl.pose.pose.position.y))
+        rospy.loginfo('move_dis: {0}'.format(move_dis))
+
+        if move_dis >= self.dis_unit:
+            self.move_adjacency_node(dest_neighbor_node=self.next_node, sim=False, render=True)
+            self.robot_x = r_amcl.pose.pose.position.x
+            self.robot_y = r_amcl.pose.pose.position.y
+
+        rospy.loginfo('cur_neighbor: {0}'.format(self.cur_neighbor))
 
         return
 

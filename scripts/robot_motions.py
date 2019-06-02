@@ -7,7 +7,7 @@ import qi
 import os
 # import datetime
 import subprocess
-from math import atan2
+from math import atan2, ceil
 from numpy.linalg import norm
 
 import actionlib
