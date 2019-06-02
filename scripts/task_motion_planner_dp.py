@@ -206,4 +206,5 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 if __name__ == '__main__':
     rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
     tamp = TaskMotionPlannerDP()
-    tamp.run_plan_viz()
+    # tamp.run_plan_viz()  # this is for simulation
+    rospy.spin()  # this is for real world application
