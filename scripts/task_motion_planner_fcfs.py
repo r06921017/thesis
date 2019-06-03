@@ -77,9 +77,9 @@ class TaskMotionPlannerFCFS:
         # Fetch the destination from the task
         if len(self.instr_dict.keys()) > 0:
             dest_node = self.instr_dict[min(self.instr_dict.keys())].destination  # destination node
-            rospy.logdebug('destination node: {0}'.format(dest_node))
+            rospy.loginfo('destination node: {0}'.format(dest_node))
             temp_path = nx.shortest_path(self.map_graph, self.cur_node, dest_node, weight='weight')
-            rospy.logdebug('temp_path = {0}'.format(temp_path))
+            rospy.loginfo('temp_path = {0}'.format(temp_path))
 
             if len(temp_path) > 1:
                 self.next_node = temp_path[1]  # next neighbor node for motion planner
@@ -135,7 +135,7 @@ class TaskMotionPlannerFCFS:
 
         if not sim:  # if real move, not checking the candidate steps.
             self.cur_neighbor = list(_temp_neighbor)
-            rospy.logdebug('self.cur_neighbor: {0}'.format(self.cur_neighbor))
+            rospy.loginfo('self.cur_neighbor: {0}'.format(self.cur_neighbor))
 
             if render:
                 # robot reach destination neighbor node
@@ -161,7 +161,7 @@ class TaskMotionPlannerFCFS:
                 _viz_node.data = str(_robot_node)
                 self.viz_node_pub.publish(_viz_node)
 
-        rospy.logdebug('neighbor array after moving: {0}'.format(_temp_neighbor))
+        rospy.loginfo('neighbor array after moving: {0}'.format(_temp_neighbor))
         return _temp_neighbor
 
     def plan_motion_viz(self):

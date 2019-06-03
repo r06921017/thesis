@@ -310,8 +310,8 @@ if __name__ == '__main__':
     rospy.loginfo('robot_motions start!')
     rospy.sleep(0.2)
 
-    temp_symbol = 6
-    dest_symbol = 8
+    temp_symbol = 2
+    dest_symbol = 6
     set_initial_pose(loc[temp_symbol][0], loc[temp_symbol][1], loc[temp_symbol][2], temp_symbol)
     rospy.sleep(1)
     temp_sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)  # type: SimpleActionClient
