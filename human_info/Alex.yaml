@@ -1,6 +1,6 @@
 action: 7
-ip: 192.168.0.125
-location: 5
+ip: 192.168.50.60
+location: 0
 name: Alex
 schedules:
   ScheduleArray: []

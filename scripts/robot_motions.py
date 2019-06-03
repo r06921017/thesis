@@ -7,7 +7,7 @@ import qi
 import os
 # import datetime
 import subprocess
-from math import atan2, ceil
+from math import atan2, pi, copysign
 from numpy.linalg import norm
 
 import actionlib
@@ -154,11 +154,21 @@ def get_cur_pos(pos_topic, t):
         exit(1)
 
 
-def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_rotation_first=True):
+def simple_rotate(delta_rad):
+    motion_service.moveTo(0.0, 0.0, delta_rad, 1)
+    return
+
+# def simple_rotate(delta_rad, rad_th=pi/3.0):
+#     temp_rad = delta_rad if abs(delta_rad) < rad_th else copysign(rad_th, delta_rad)
+#     motion_service.moveTo(0.0, 0.0, temp_rad, 1)
+#     return
+
+
+def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_rotation_first=True, path_th=4):
     rospy.loginfo('inflation_radius = {0}'.format(inflation_radius))
 
     # robot is static
-    cur_x, cur_y, cur_yaw = get_cur_pos(pos_topic='amcl_pose', t=1)
+    cur_x, cur_y, cur_yaw = get_cur_pos(pos_topic='amcl_pose', t=0.5)
     rospy.loginfo('cur_x, cur_y, cur_yaw = {0} {1} {2}'.format(cur_x, cur_y, cur_yaw))
     tan_yaw = atan2(dest_y-cur_y, dest_x-cur_x)
 
@@ -193,23 +203,29 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
 
             if with_rotation_first:
                 temp_global_path = get_global_path(start, goal, 0.1)
-                next_location = [temp_global_path.plan.poses[4].pose.position.x,
-                                 temp_global_path.plan.poses[4].pose.position.y]
+                if len(temp_global_path.plan.poses) > path_th:
+                    next_location = [temp_global_path.plan.poses[path_th].pose.position.x,
+                                     temp_global_path.plan.poses[path_th].pose.position.y]
+
+                else:
+                    next_location = [temp_global_path.plan.poses[-path_th].pose.position.x,
+                                     temp_global_path.plan.poses[-path_th].pose.position.y]
 
                 theta = atan2(next_location[1] - cur_y, next_location[0] - cur_x)  # the angle to path direction
-                motion_service.moveTo(0.0, 0.0, (theta - cur_yaw), 1)
+                simple_rotate(theta)
                 posture_service.goToPosture("StandInit", 0.5)
                 rospy.loginfo('rotation finish')
 
                 # Update tan_yaw for smooth navigation
-                tan_yaw = atan2(temp_global_path.plan.poses[-2].pose.position.y - dest_y,
-                                temp_global_path.plan.poses[-2].pose.position.x - dest_x)
+                tan_yaw = atan2(dest_y-temp_global_path.plan.poses[-4].pose.position.y,
+                                dest_x-temp_global_path.plan.poses[-4].pose.position.x)
 
             rospy.loginfo('tan_yaw = {0}'.format(tan_yaw))
             within_time = run_movebase(sac, dest_x, dest_y, tan_yaw)
+            rospy.loginfo('within_time: {0}'.format(within_time))
 
             if not within_time:
-                shutdown(sac)
+                shutdown()
                 rospy.loginfo('Timed out achieving goal.')
 
             else:
@@ -219,7 +235,7 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
 
                 else:
                     rospy.loginfo('Goal failed with error code:' + str(goal_states[state]))
-                    shutdown(sac)
+                    shutdown()
                     inflation_radius -= 0.2
                     simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius, with_rotation_first)
         else:
@@ -234,12 +250,13 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
     return
 
 
-def shutdown(sac):
-    rospy.loginfo('Stopping the robot ...')
-    sac.cancel_goal()
-    rospy.sleep(2)
-    cmd_vel_pub.publish(Twist())
+def shutdown():
+    rospy.loginfo('Shutdown the robot ...')
     rospy.sleep(1)
+    cmd_vel_pub.publish(Twist())
+    # rospy.sleep(1)
+    # rospy.loginfo('canceling the goal ...')
+    # sac.cancel_goal()
     return
 
 

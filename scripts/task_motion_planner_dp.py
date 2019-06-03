@@ -6,7 +6,7 @@ Solve task planning with dynamic programming (value iteration)
 from task_motion_planner_fcfs import *
 import operator
 from robot_motions import *
-from std_msgs.msg import Int32
+# from std_msgs.msg import Int32
 
 
 class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
@@ -18,18 +18,25 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         self.shortest_path = nx.floyd_warshall_numpy(self.map_graph)
 
         # for real world motion
-        self.motion_sub = rospy.Subscriber('/thesis/next_node', Int32, self.nav_cb, queue_size=5)
+        set_initial_pose(loc[self.cur_node][0], loc[self.cur_node][1], loc[self.cur_node][2], self.cur_node)
+        self.robot_x, self.robot_y = loc[self.cur_node][0], loc[self.cur_node][1]
         self.sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)  # type: SimpleActionClient
         self.move_lock = False
-        self.robot_x, self.robot_y, _ = get_cur_pos(pos_topic='/amcl_pose', t=0.2)
-        self.dis_unit = 0.2
+        self.dis_unit = 0.15
+
+        self.amcl_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.pos_cb)
+        # self.motion_sub = rospy.Subscriber('/thesis/next_node', Int32, self.nav_cb, queue_size=5)
+        # self.motion_pub = rospy.Publisher('/thesis/next_node', Int32, queue_size=5)
 
         print '----------------------------------------'
         print self.shortest_path
         print self.shortest_path.shape
         print '----------------------------------------'
+        rospy.loginfo('TAMP Initialized!')
 
     def value_iter(self):
+        rospy.loginfo('value_iter, cur_node: {0}, next_node: {1}'.format(self.cur_node, self.next_node))
+
         # Compare the accumulated reward of neighbor, move to the maximum one.
         neighbor_node = np.where(np.array(self.cur_neighbor) > 0)[0].tolist()
         candidate_steps = dict()  # {neighbor_node: {'reward': float, 'neighbor': np.array}}
@@ -50,7 +57,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
                     total_reward += instr.r * pow(instr.b, np.min(temp_dis))
 
-            rospy.logdebug('total reward in candidate node {0}: {1}'.format(n, total_reward))
+            rospy.loginfo('total reward in candidate node {0}: {1}'.format(n, total_reward))
 
             candidate_steps[n] = {'reward': total_reward, 'neighbor': temp_neighbor}
 
@@ -60,7 +67,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
     def plan_task(self, in_instructions):
         rospy.loginfo('Start task planning!')
-
+        self.move_lock = True
         # Convert InstructionArray into dictionary
         if type(in_instructions) == thesis.msg._InstructionArray.InstructionArray:
             for instr in in_instructions.data:
@@ -73,13 +80,17 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
         if len(self.instr_dict.keys()) > 0:  # if there exists instructions
             if len(self.instr_dest_dict[self.cur_node]) > 0:
-                # for two-stage instruction
+                # for two-stage instruction, count the instructions that still have previous instr
                 temp_count = 0
                 for instr_id in self.instr_dest_dict[self.cur_node]:
                     if self.instr_dict[instr_id].prev_id in self.instr_dict.keys():
                         temp_count += 1
+
+                # all the instructions in cur_node are sequential
                 if temp_count == len(self.instr_dest_dict[self.cur_node]):
-                    self.value_iter()
+                    self.value_iter()  # update self.next_node
+
+                # there are instructions exist in cur_node
                 else:
                     self.next_node = self.cur_node
 
@@ -87,10 +98,11 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                 # self.next_node = self.cur_node
 
             else:
-                self.value_iter()
+                self.value_iter()  # update self.next_node
 
             rospy.loginfo('plan_task result: {0}'.format(self.next_node))
-
+            # self.motion_pub.publish(self.next_node)
+            self.move_lock = False
         return
 
     def plan_motion_viz(self):
@@ -135,70 +147,91 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
         return
 
-    def nav_cb(self, in_next_node):
+    def plan_motion(self):
         """
-
-        :param in_next_node: next_node from task planner
-        :return:
+        navigation callback for Pepper
+        :return: None, only move the robot
         """
         # Moving toward node
         if self.move_lock:
-            shutdown(self.sac)
+            rospy.loginfo('move_lock .........................................')
+            shutdown()
         else:
-            if in_next_node != self.next_node:
-                shutdown(self.sac)
-                simple_move_base(self.sac, loc[in_next_node][0], loc[in_next_node][1], loc[in_next_node][2])
+            if self.cur_node != self.next_node:
+                rospy.loginfo('Start simple_mode in nav_cb.')
+                shutdown()
+                simple_move_base(self.sac, loc[self.next_node][0], loc[self.next_node][1], loc[self.next_node][2])
                 self.cur_node = self.next_node
-                self.move_lock = True
+                self.cur_neighbor = self.adjacency_matrix[self.cur_node].astype(int)
+                rospy.loginfo('Change cur_node to: {0}'.format(self.cur_node))
 
-        # Reach node
-        if len(self.instr_dest_dict[self.cur_node]) > 0:
-            # Create reward_dict = {'id (int)': 'reward (float)'}
-            reward_dict = dict()
-            for idx in self.instr_dest_dict[self.cur_node]:
-                # Check two-stage instruction
-                if self.instr_dict[idx].prev_id not in self.instr_dict.keys():
-                    reward_dict[self.instr_dict[idx].id] = self.instr_dict[idx].r
+            else:
+                # Reach node
+                if len(self.instr_dest_dict[self.cur_node]) > 0:
+                    # Create reward_dict = {'id (int)': 'reward (float)'}
+                    reward_dict = dict()
+                    for idx in self.instr_dest_dict[self.cur_node]:
+                        # Check two-stage instruction
+                        if self.instr_dict[idx].prev_id not in self.instr_dict.keys():
+                            reward_dict[self.instr_dict[idx].id] = self.instr_dict[idx].r
 
-            # Sort the instructions with the max reward
-            for r in sorted(reward_dict.items(), key=operator.itemgetter(1), reverse=True):
-                do_instr = self.instr_dict[r[0]]
-                rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
-                rospy.sleep(do_instr.duration)
-                del self.instr_dict[r[0]]
-                self.show_instr()
+                    # Sort the instructions with the max reward
+                    for r in sorted(reward_dict.items(), key=operator.itemgetter(1), reverse=True):
+                        do_instr = self.instr_dict[r[0]]
+                        simple_rotate(loc[self.cur_node][2] - get_cur_pos(pos_topic='/amcl_pose', t=0.5)[2])
+                        rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
+                        rospy.sleep(do_instr.duration)
+                        del self.instr_dict[r[0]]
+                        self.show_instr()
 
-            # Reset the set when all the tasks in the instructions are done.
-            self.instr_dest_dict[self.cur_node].clear()
-            rospy.logdebug('self.instr_dest_dict: {0}'.format(self.instr_dest_dict))
+                    # Reset the set when all the tasks in the instructions are done.
+                    self.instr_dest_dict[self.cur_node].clear()
+                    rospy.logdebug('self.instr_dest_dict: {0}'.format(self.instr_dest_dict))
 
-            # Convert undo_tasks to a list() and publish to /thesis/instruction_buffer
-            undo_instr_list = list()
-            for key, value in self.instr_dict.iteritems():
-                undo_instr_list.append(value)
+                    # Convert undo_tasks to a list() and publish to /thesis/instruction_buffer
+                    undo_instr_list = list()
+                    for key, value in self.instr_dict.iteritems():
+                        undo_instr_list.append(value)
 
-            self.task_pub.publish(undo_instr_list)
+                    self.task_pub.publish(undo_instr_list)
 
-        else:
-            rospy.loginfo('No instructions on task {0}'.format(self.cur_node))
-            if len(self.instr_dict) > 0:
-                self.plan_task(self.instr_dict)
+                else:
+                    rospy.loginfo('No instructions on task {0}'.format(self.cur_node))
+                    rospy.sleep(2)
+                    if len(self.instr_dict) > 0:
+                        self.plan_task(self.instr_dict)
+
+        return
+
+    def run_plan(self):
+        rospy.loginfo('Start TAMP!')
+
+        # Publish the initial position node of the robot to visualization
+        rospy.sleep(0.5)
+        self.viz_node_pub.publish(String(data=str(self.cur_node)))
+
+        # Start running motion planning and visualization
+        rate = rospy.Rate(1.0 / self.time_step)
+        while not rospy.is_shutdown():
+            self.plan_motion()
+            rate.sleep()
 
         return
 
     def pos_cb(self, r_amcl):
-        rospy.loginfo('pos_cb!')
-        move_dis = norm(r_amcl.pose.pose.position.x-self.robot_x, r_amcl.pose.pose.position.y-self.robot_y)
+        # rospy.loginfo('pos_cb!')
+        move_dis = norm([r_amcl.pose.pose.position.x-self.robot_x, r_amcl.pose.pose.position.y-self.robot_y])
 
-        rospy.loginfo('cur_pos: {0}, {1}'.format(r_amcl.pose.pose.position.x, r_amcl.pose.pose.position.y))
-        rospy.loginfo('move_dis: {0}'.format(move_dis))
+        # rospy.loginfo('cur_pos: {0}, {1}'.format(r_amcl.pose.pose.position.x, r_amcl.pose.pose.position.y))
+        # rospy.loginfo('move_dis: {0}'.format(move_dis))
 
         if move_dis >= self.dis_unit:
             self.move_adjacency_node(dest_neighbor_node=self.next_node, sim=False, render=True)
             self.robot_x = r_amcl.pose.pose.position.x
             self.robot_y = r_amcl.pose.pose.position.y
 
-        rospy.loginfo('cur_neighbor: {0}'.format(self.cur_neighbor))
+        # rospy.loginfo('cur_neighbor: {0}'.format(self.cur_neighbor))
+        # rospy.loginfo('cur_node: {0}'.format(self.cur_node))
 
         return
 
@@ -207,4 +240,4 @@ if __name__ == '__main__':
     rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
     tamp = TaskMotionPlannerDP()
     # tamp.run_plan_viz()  # this is for simulation
-    rospy.spin()  # this is for real world application
+    tamp.run_plan()  # this is for real world application

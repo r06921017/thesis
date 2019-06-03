@@ -90,10 +90,18 @@ class InstructionConstructor:
         return
 
     def int_cb(self, in_int):
-        if in_int.data == 0:
-            self.instr_dict[self.last_id] = Instruction(id=self.last_id, type=0, duration=1, source='Charlie', status=0,
-                                                        r=1, b=0.9, function=0, target='Bob', destination=2)
-            self.last_id += 1
+        self.instr_dict[self.last_id] = Instruction(id=self.last_id,
+                                                    type=0,
+                                                    duration=1,
+                                                    source='Charlie',
+                                                    status=0,
+                                                    r=1,
+                                                    b=0.9,
+                                                    function=0,
+                                                    target='Bob',
+                                                    destination=in_int.data,
+                                                    prev_id=-1)
+        self.last_id += 1
 
         self.launch_instr()
         return
