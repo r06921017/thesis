@@ -3,8 +3,9 @@
 """
 Solve task planning with first come first serve
 """
-
-from perception.human_id import *
+import rospy
+import os
+from perception import human_id
 from thesis.msg import *
 import rospkg
 from std_msgs.msg import String
@@ -13,14 +14,14 @@ import numpy as np
 import networkx as nx
 
 
-class TaskMotionPlannerFCFS:
+class TaskMotionPlannerFCFSSim:
     def __init__(self):
         self.sub = rospy.Subscriber('/thesis/instruction_buffer', InstructionArray, self.plan_task, queue_size=5)
         self.task_pub = rospy.Publisher('/thesis/instruction_buffer', InstructionArray, queue_size=1)
 
         # for two-stage instruction ('check status' from caregiver)
         # human_dict = {'name':{'Name': Human()}, 'ip':{'192.168.0.xxx':'Name'}}
-        self.human_dict = load_human_info2dict(rospkg.RosPack().get_path('thesis') + '/human_info/')
+        self.human_dict = human_id.load_human_info2dict(rospkg.RosPack().get_path('thesis') + '/human_info/')
 
         # for TAMP
         self.map_graph = create_map_graph()
@@ -217,5 +218,5 @@ class TaskMotionPlannerFCFS:
 
 if __name__ == '__main__':
     rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
-    tamp = TaskMotionPlannerFCFS()
+    tamp = TaskMotionPlannerFCFSSim()
     tamp.run_plan_viz()

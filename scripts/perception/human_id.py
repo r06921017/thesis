@@ -348,7 +348,7 @@ def update_human_info_dict(in_human):
         h_dict['name'] = name_dict
         h_dict['ip'] = ip_dict
 
-        with open('human_dict.pkl', 'wb') as fin:
+        with open(human_info_dir+'human_dict.pkl', 'wb') as fin:
             pickle.dump(h_dict, fin)
 
     return
@@ -361,7 +361,8 @@ def load_human_info(human_info_dir):
     """
 
     if 'human_info.pkl' in os.listdir(human_info_dir):
-        h_list = pickle.load('human_info.pkl')
+        with open(human_info_dir+'human_info.pkl', 'rb') as fout:
+            h_list = pickle.load(fout)
 
     else:
         yaml_list = os.listdir(human_info_dir)
@@ -380,7 +381,7 @@ def load_human_info(human_info_dir):
 
                 h_list.append(human_msg)
 
-            with open('human_info.pkl', 'wb') as fin:
+            with open(human_info_dir+'human_info.pkl', 'wb') as fin:
                 pickle.dump(h_list, fin)
 
     return h_list
@@ -388,7 +389,8 @@ def load_human_info(human_info_dir):
 
 def load_human_info2dict(human_info_dir):
     if 'human_dict.pkl' in os.listdir(human_info_dir):
-        human_dict = pickle.load('human_dict.pkl')
+        with open(human_info_dir+'human_dict.pkl', 'rb') as fout:
+            human_dict = pickle.load(fout)
     else:
         h_list = load_human_info(human_info_dir)
         name_dict = dict()

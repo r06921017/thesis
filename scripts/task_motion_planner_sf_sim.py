@@ -4,12 +4,12 @@
 Solve task planning with current shortest time (do + move) first.
 """
 
-from task_motion_planner_pf import *
+from task_motion_planner_pf_sim import *
 
 
-class TaskMotionPlannerSF(TaskMotionPlannerPF):
+class TaskMotionPlannerSF(TaskMotionPlannerPFSim):
     def __init__(self):
-        TaskMotionPlannerPF.__init__(self)
+        TaskMotionPlannerPFSim.__init__(self)
         self.shortest_path = nx.floyd_warshall_numpy(self.map_graph)
 
     def plan_task(self, in_instructions):

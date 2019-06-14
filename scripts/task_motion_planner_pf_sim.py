@@ -5,19 +5,18 @@ Solve task planning with priority first.
 self.property_dict: reward in this case
 """
 
-from task_motion_planner_fcfs import *
-import random
+from task_motion_planner_fcfs_sim import *
 
 
-class TaskMotionPlannerPF(TaskMotionPlannerFCFS):
+class TaskMotionPlannerPFSim(TaskMotionPlannerFCFSSim):
     def __init__(self):
-        TaskMotionPlannerFCFS.__init__(self)
+        TaskMotionPlannerFCFSSim.__init__(self)
         self.property_key = -1
 
     @staticmethod
     def show_property(in_dict):
         for key, instr_id in in_dict.iteritems():
-            print 'id: {0}, reward: {1}'.format(key, instr_id)
+            rospy.logdebug('id: {0}, reward: {1}'.format(key, instr_id))
         return
 
     def plan_task(self, in_instructions):
@@ -34,10 +33,16 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFS):
 
         # Fetch the destination from the task
         if len(self.instr_dict.keys()) > 0:
-            # Random pick an instruction to complete
-            if self.property_key not in self.instr_dict.keys():
-                self.property_key = random.choice(self.instr_dict.keys())
+            # Create reward dictionary = {'id': 'r'}
+            _property_dict = dict()
+            self.property_key = -1
 
+            for _, instr in self.instr_dict.iteritems():
+                _property_dict[instr.id] = instr.r
+            self.show_property(_property_dict)
+
+            # Get the key(id) with the max value(r) in self.property_dict
+            self.property_key = max(_property_dict.iterkeys(), key=(lambda key: _property_dict[key]))
             dest_node = self.instr_dict[self.property_key].destination  # destination node
             rospy.loginfo('destination node: {0}'.format(dest_node))
 
@@ -57,7 +62,7 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFS):
             rospy.loginfo('Motion: Reach node {0}.'.format(self.next_node))
 
             if len(self.instr_dest_dict[self.cur_node]) > 0:
-                print 'self.instr_dest_dict[self.cur_node] = ', self.instr_dest_dict[self.cur_node]
+                rospy.logdebug('self.instr_dest_dict[self.cur_node] = '.format(self.instr_dest_dict[self.cur_node]))
 
                 for idx in self.instr_dest_dict[self.cur_node]:
                     if idx == self.property_key:
@@ -92,5 +97,5 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFS):
 
 if __name__ == '__main__':
     rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
-    tamp = TaskMotionPlannerPF()
+    tamp = TaskMotionPlannerPFSim()
     tamp.run_plan_viz()

@@ -8,14 +8,14 @@ import rospy
 import rospkg
 from jsk_gui_msgs.msg import VoiceMessage
 from thesis.msg import *
-from node_viz import create_map_graph
+from src.thesis.scripts.decision_making.node_viz import create_map_graph
 from std_msgs.msg import Int8
 import time
 import random
 import os
 import argparse
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-import human_id
+from src.thesis.scripts.perception import human_id
 import copy
 
 
@@ -71,7 +71,7 @@ class InstructionConstructor:
         self.task_loc = [0, 1, 2, 5, 6, 7]
         self.task_priority = range(1, 5)  # 1~4
         self.task_duration = range(1, 10)  # 1~9
-        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5:0.98}
+        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}
         self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 5, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}
 
     def instr_cb(self, in_instructions):
