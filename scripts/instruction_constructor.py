@@ -8,14 +8,14 @@ import rospy
 import rospkg
 from jsk_gui_msgs.msg import VoiceMessage
 from thesis.msg import *
-from src.thesis.scripts.decision_making.node_viz import create_map_graph
+from decision_making.node_viz import create_map_graph
 from std_msgs.msg import Int8
 import time
 import random
 import os
 import argparse
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
-from src.thesis.scripts.perception import human_id
+from perception import human_id
 import copy
 
 
