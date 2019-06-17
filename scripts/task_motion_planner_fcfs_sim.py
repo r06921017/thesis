@@ -12,6 +12,7 @@ from std_msgs.msg import String
 from decision_making.node_viz import create_map_graph
 import numpy as np
 import networkx as nx
+import time
 
 
 class TaskMotionPlannerFCFSSim:
@@ -37,6 +38,7 @@ class TaskMotionPlannerFCFSSim:
         self.viz_node_pub = rospy.Publisher('/thesis/robot_node', String, queue_size=2)
         self._pkg_dir = rospkg.RosPack().get_path('thesis')
         self.cur_neighbor = self.adjacency_matrix[self.cur_node].astype(int).tolist()
+        self.plan_time = 0
 
     def show_instr(self):
         _loc_symbol = {0: 'office',
@@ -65,6 +67,7 @@ class TaskMotionPlannerFCFSSim:
 
     def plan_task(self, in_instructions):
         rospy.loginfo('Planning task ...')
+        s_time = time.time()  # for task planning time
         # self.cur_instr.data = list(instr_list.data)
 
         # Convert InstructionArray into dictionary
@@ -87,6 +90,11 @@ class TaskMotionPlannerFCFSSim:
             else:
                 self.next_node = self.cur_node
             rospy.loginfo('plan_task result: {0}'.format(self.next_node))
+
+            # evaluate planning time
+            self.plan_time += time.time() - s_time
+            rospy.set_param('/thesis/plan_time', self.plan_time)
+            rospy.loginfo('plan_time: {0}'.format(self.plan_time))
 
         return
 

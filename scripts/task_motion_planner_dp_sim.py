@@ -54,6 +54,9 @@ class TaskMotionPlannerDPSim(TaskMotionPlannerFCFSSim):
 
     def plan_task(self, in_instructions):
         rospy.loginfo('Start task planning!')
+
+        s_time = time.time()
+
         # Convert InstructionArray into dictionary
         if type(in_instructions) == thesis.msg._InstructionArray.InstructionArray:
             for instr in in_instructions.data:
@@ -88,6 +91,8 @@ class TaskMotionPlannerDPSim(TaskMotionPlannerFCFSSim):
 
             rospy.loginfo('plan_task result: {0}'.format(self.next_node))
             # self.motion_pub.publish(self.next_node)
+
+        self.plan_time += time.time() - s_time
         return
 
     def plan_motion_viz(self):

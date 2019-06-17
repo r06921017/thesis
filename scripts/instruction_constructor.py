@@ -255,8 +255,8 @@ class InstructionConstructor:
                 temp_instr = rospy.wait_for_message('/thesis/instruction_buffer', InstructionArray, timeout=0.5)
                 if len(temp_instr.data) == 0:
                     end_time = time.time()
-                    rospy.loginfo('Total task duration: {0} (s)'.format(sum(d_list)))
-                    rospy.loginfo('Task process time: {0} (s)'.format(end_time - start_time - t))
+                    rospy.loginfo('Task duration: {0} (s)'.format(sum(d_list)))
+                    rospy.loginfo('Total process time: {0} (s)'.format(end_time - start_time - t))
                     rospy.loginfo('Navigation process time: {0} (s)'.format(end_time - start_time - t - sum(d_list)))
                     break
 
