@@ -34,11 +34,16 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         print '----------------------------------------'
         rospy.loginfo('TAMP Initialized!')
 
-    def value_iter(self):
+    def value_iter(self, in_node=None):
         rospy.loginfo('value_iter, cur_node: {0}, next_node: {1}'.format(self.cur_node, self.next_node))
 
+        if in_node is None:
+            _in_neighbor = list(self.cur_neighbor)  # copy the list, not changing self.cur_neighbor
+        else:
+            _in_neighbor = list(self.adjacency_matrix[in_node].astype(int).tolist())
+
         # Compare the accumulated reward of neighbor, move to the maximum one.
-        neighbor_node = np.where(np.array(self.cur_neighbor) > 0)[0].tolist()
+        neighbor_node = np.where(np.array(_in_neighbor) > 0)[0].tolist()
         candidate_steps = dict()  # {neighbor_node: {'reward': float, 'neighbor': np.array}}
 
         for n in neighbor_node:
@@ -62,7 +67,14 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
             candidate_steps[n] = {'reward': total_reward, 'neighbor': temp_neighbor}
 
         # Pick the node with maximum accumulated reward
-        self.next_node = max(candidate_steps, key=lambda x: candidate_steps[x]['reward'])
+        _temp_next_node = max(candidate_steps, key=lambda x: candidate_steps[x]['reward'])
+
+        if _temp_next_node == 3 or _temp_next_node == 4:
+            self.value_iter(in_node=_temp_next_node)
+        else:
+            self.next_node = _temp_next_node
+            rospy.loginfo('plan_task result: {0}'.format(self.next_node))
+
         return
 
     def plan_task(self, in_instructions):

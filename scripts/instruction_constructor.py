@@ -227,9 +227,14 @@ class InstructionConstructor:
             # d_list = [9, 1, 3, 7, 7, 6, 3, 2, 2, 5]  # duration
             # b_list = [self.b_dict[r] for r in r_list]  # decay factor list
 
-            des_ls = [0, 5, 5, 0, 7, 2, 1, 6, 2, 7, 2, 6, 1, 6, 0, 6, 5]  # destination
-            r_list = [2, 2, 1, 2, 1, 3, 2, 2, 2, 3, 1, 4, 1, 2, 4, 1, 4]  # reward
-            d_list = [9, 2, 8, 3, 6, 9, 3, 7, 3, 8, 5, 7, 9, 1, 6, 5, 9]  # duration
+            # des_ls = [0, 5, 5, 0, 7, 2, 1, 6, 2, 7, 2, 6, 1, 6, 0, 6, 5]  # destination
+            # r_list = [2, 2, 1, 2, 1, 3, 2, 2, 2, 3, 1, 4, 1, 2, 4, 1, 4]  # reward
+            # d_list = [9, 2, 8, 3, 6, 9, 3, 7, 3, 8, 5, 7, 9, 1, 6, 5, 9]  # duration
+            # b_list = [self.b_dict[r] for r in r_list]  # decay factor list
+
+            des_ls = [0, 5, 5]  # destination
+            r_list = [2, 2, 1]  # reward
+            d_list = [5, 2, 8]  # duration
             b_list = [self.b_dict[r] for r in r_list]  # decay factor list
 
             max_num = len(des_ls)
@@ -247,6 +252,7 @@ class InstructionConstructor:
         rospy.sleep(t)
 
         start_time = time.time()
+        rospy.set_param('/instr_start_time', start_time)
         self.launch_instr()
         rospy.sleep(t)
 

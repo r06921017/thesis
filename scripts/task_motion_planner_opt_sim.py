@@ -16,6 +16,10 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
         self.shortest_path = nx.floyd_warshall_numpy(self.map_graph)
         self.reward_list = list()
         self.opt_seq = list()
+        self.opt_accu_reward_list = list()
+        self.opt_time_list = list()
+        self.instr_counter = -1
+        self.save_opt_flag = True
 
         rospy.loginfo('TAMP_Opt Initialized!')
 
@@ -23,13 +27,14 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
         # This is only for static instruction list
         rospy.loginfo('Start task planning!')
 
+        s_time = time.time()
+        _store_time = 0.0
+
         # Convert InstructionArray into dictionary
         if type(in_instructions) == thesis.msg._InstructionArray.InstructionArray:
             for instr in in_instructions.data:
                 self.instr_dest_dict[instr.destination].add(instr.id)
                 self.instr_dict[instr.id] = instr
-
-            # print 'self.instr_dict: ', self.instr_dict
 
         rospy.loginfo('self.instr_dict.keys(): {0}'.format(self.instr_dict.keys()))
 
@@ -50,7 +55,7 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
 
         else:
             rospy.logwarn('self.opt_seq is empty.')
-            s_time = time.time()
+            self.instr_counter = len(self.instr_dict.keys())
             node_seq = list(itertools.permutations(self.instr_dict.keys()))
             rospy.logdebug('len node_seq: {0}'.format(len(node_seq)))
 
@@ -59,7 +64,10 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
                 path_len = 0
                 temp_node = self.cur_node
                 for instr_id in seq:
-                    path_len += self.shortest_path[self.instr_dict[instr_id].destination, temp_node]
+                    temp_duration = self.shortest_path[self.instr_dict[instr_id].destination, temp_node] + \
+                                    np.around(self.instr_dict[instr_id].duration / self.sim_time_step)
+                    path_len += temp_duration
+
                     reward_seq[s_id] += self.instr_dict[instr_id].r * (self.instr_dict[instr_id].b ** path_len)
                     temp_node = self.instr_dict[instr_id].destination
 
@@ -67,10 +75,39 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
             self.opt_seq = list(node_seq[np.argmax(reward_seq)])  # list of instr_id
             rospy.loginfo('opt_seq: {0}'.format(self.opt_seq))
 
-            # evaluate planning time
-            self.plan_time = time.time() - s_time
-            rospy.loginfo('plan time: {0}')
-            rospy.set_param('/thesis/plan_time', self.plan_time)
+            if self.save_opt_flag:
+                # store theoretical optimal rewards once!
+                _ss_time = time.time()
+                rospy.loginfo('Saving optimal reward')
+                __temp_len = 0.0
+                __temp_reward = 0.0
+                __temp_node = self.cur_node
+                __temp_t_list = list()
+                __temp_r_list = list()
+
+                for seq_id, instr_id in enumerate(self.opt_seq):
+                    __temp_len += self.shortest_path[self.instr_dict[instr_id].destination, __temp_node] + \
+                                  np.around(self.instr_dict[instr_id].duration / self.sim_time_step)
+
+                    __temp_reward += self.instr_dict[instr_id].r * (self.instr_dict[instr_id].b ** __temp_len)
+                    __temp_node = self.instr_dict[instr_id].destination
+
+                    __temp_r_list.append(__temp_reward)
+                    __temp_t_list.append(__temp_len)
+
+                opt_csv_file = self._pkg_dir + '/config/' + os.path.basename(__file__).split('.')[0] + '_opt_reward.csv'
+                output_df = pd.DataFrame({'time': __temp_t_list, 'reward': __temp_r_list})
+                output_df.to_csv(opt_csv_file, index=False)
+
+                self.save_opt_flag = False
+                rospy.loginfo('Done!')
+
+                _store_time = time.time() - _ss_time
+
+        # evaluate planning time
+        self.plan_time += time.time() - s_time - _store_time
+        rospy.loginfo('plan time: {0}'.format(self.plan_time))
+        rospy.set_param('/thesis/plan_time', self.plan_time)            
 
         return
 
@@ -87,10 +124,20 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
                             do_instr = self.instr_dict[idx]
                             rospy.loginfo('Do instr {0}: {1}'.format(idx, do_instr.function))
                             rospy.sleep(do_instr.duration)
+                            done_time = time.time()
+
+                            # calculate obtained reward
+                            # rospy.set_param('instr_start_time') is in "instruction_constructor.py"
+                            _temp_step = np.around((done_time-rospy.get_param('/instr_start_time'))/self.sim_time_step)
+                            self.accu_r += do_instr.r * (do_instr.b ** _temp_step)
+
+                            self.accu_r_list.append(self.accu_r)
+                            self.time_r_list.append(_temp_step)
 
                             del self.instr_dict[do_instr.id]
                             self.opt_seq.pop(0)
                             self.instr_dest_dict[self.cur_node].remove(do_instr.id)
+                            self.instr_counter -= 1
 
                             break
 
@@ -109,6 +156,16 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
             else:
                 rospy.loginfo('Motion: from {0} to {1}'.format(self.cur_node, self.next_node))
                 self.move_adjacency_node(self.next_node, sim=False, render=True)
+
+        # save the accumulative reward
+        else:
+            if self.instr_counter == 0:
+                rospy.loginfo('Saving reward')
+                csv_file = self._pkg_dir + '/config/' + os.path.basename(__file__).split('.')[0] + '.csv'
+                output_df = pd.DataFrame({'time': self.time_r_list, 'reward': self.accu_r_list})
+                output_df.to_csv(csv_file, index=False)
+                rospy.loginfo('Done!')
+                self.instr_counter = -1
 
         return
 

@@ -89,19 +89,26 @@ class TaskMotionPlannerFCFS:
 
         return
 
-    def move_adjacency_node(self, dest_neighbor_node, sim=True, render=False):
+    def move_adjacency_node(self, dest_neighbor_node, sim=True, render=False, in_node=None):
         """
         Get the neighbor of next node after moving.
         :param dest_neighbor_node: int of neighbor node
         :param sim: is it simulation or real move
         :param render: Whether to show on networkx.
+        :param in_node: input_node, usually cur_node
         :return: next_neighbor, type=list()
         """
 
         rospy.logdebug('move_adjacency_node!!!!')
         # rospy.loginfo('cur_neighbor = {0}'.format(self.cur_neighbor))
 
-        _neighbor_nodes = np.where(np.array(self.cur_neighbor) > 0)[0].tolist()
+        if in_node is None:
+            in_node = self.cur_node
+            _temp_neighbor = list(self.cur_neighbor)  # copy the list, not changing self.cur_neighbor
+        else:
+            _temp_neighbor = list(self.adjacency_matrix[in_node].astype(int).tolist())  # copy the list
+
+        _neighbor_nodes = np.where(np.array(_temp_neighbor) > 0)[0].tolist()
 
         rospy.logdebug('dest_neighbor_node = {0}'.format(dest_neighbor_node))
         rospy.logdebug('_neighbor_nodes = {0}'.format(_neighbor_nodes))
@@ -114,8 +121,6 @@ class TaskMotionPlannerFCFS:
             rospy.logerr('Invalid destination for planning.')
             exit(1)
 
-        _temp_neighbor = list(self.cur_neighbor)  # copy the list, not changing self.cur_neighbor
-
         # update neighbor after moving
         for n in _neighbor_nodes:
             if n == dest_neighbor_node:  # moving toward desire neighbor node
@@ -125,9 +130,9 @@ class TaskMotionPlannerFCFS:
                     _temp_neighbor = np.copy(self.adjacency_matrix[n]).astype(int).tolist()
                     break
 
-                _temp_neighbor[self.cur_node] += 1
+                _temp_neighbor[in_node] += 1
 
-            elif n == self.cur_node:  # robot is currently on the edge.
+            elif n == in_node:  # robot is currently on the edge.
                 continue
 
             else:

@@ -13,6 +13,7 @@ from decision_making.node_viz import create_map_graph
 import numpy as np
 import networkx as nx
 import time
+import pandas as pd
 
 
 class TaskMotionPlannerFCFSSim:
@@ -38,7 +39,10 @@ class TaskMotionPlannerFCFSSim:
         self.viz_node_pub = rospy.Publisher('/thesis/robot_node', String, queue_size=2)
         self._pkg_dir = rospkg.RosPack().get_path('thesis')
         self.cur_neighbor = self.adjacency_matrix[self.cur_node].astype(int).tolist()
-        self.plan_time = 0
+        self.plan_time = 0.0
+        self.accu_r = 0.0  # accumulate reward
+        self.accu_r_list = [0.0]
+        self.time_r_list = [0.0]
 
     def show_instr(self):
         _loc_symbol = {0: 'office',
@@ -201,6 +205,12 @@ class TaskMotionPlannerFCFSSim:
                 rospy.loginfo('No instructions on task {0}'.format(self.cur_node))
                 if len(self.instr_dict) > 0:
                     self.plan_task(self.instr_dict)
+
+                # save the accumulative reward, all
+                else:
+                    csv_file = self._pkg_dir + '/config/' + os.path.basename(__file__).split('.')[0] + '_reward.csv'
+                    output_df = pd.DataFrame({'time': self.time_r_list, 'reward': self.accu_r_list})
+                    output_df.to_csv(csv_file, index=False)
 
         else:
             rospy.loginfo('Motion: from {0} to {1}'.format(self.cur_node, self.next_node))

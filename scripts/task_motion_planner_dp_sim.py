@@ -14,6 +14,7 @@ class TaskMotionPlannerDPSim(TaskMotionPlannerFCFSSim):
         """
         TaskMotionPlannerFCFSSim.__init__(self)
         self.shortest_path = nx.floyd_warshall_numpy(self.map_graph)
+        self.save_csv_flag = False
 
         print '----------------------------------------'
         print self.shortest_path
@@ -59,11 +60,14 @@ class TaskMotionPlannerDPSim(TaskMotionPlannerFCFSSim):
 
         # Convert InstructionArray into dictionary
         if type(in_instructions) == thesis.msg._InstructionArray.InstructionArray:
+
+            self.save_csv_flag = True
+
             for instr in in_instructions.data:
                 self.instr_dest_dict[instr.destination].add(instr.id)
                 self.instr_dict[instr.id] = instr
 
-            print 'self.instr_dict: ', self.instr_dict
+            # print 'self.instr_dict: ', self.instr_dict
 
         rospy.logdebug('len(self.instr_dict.keys()): {0}'.format(len(self.instr_dict.keys())))
 
@@ -93,6 +97,9 @@ class TaskMotionPlannerDPSim(TaskMotionPlannerFCFSSim):
             # self.motion_pub.publish(self.next_node)
 
         self.plan_time += time.time() - s_time
+        rospy.set_param('/thesis/plan_time', self.plan_time)
+        rospy.loginfo('plan_time: {0}'.format(self.plan_time))
+
         return
 
     def plan_motion_viz(self):
@@ -112,6 +119,15 @@ class TaskMotionPlannerDPSim(TaskMotionPlannerFCFSSim):
                     do_instr = self.instr_dict[r[0]]
                     rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
                     rospy.sleep(do_instr.duration)
+                    done_time = time.time()
+
+                    # calculate obtained reward
+                    # rospy.set_param('instr_start_time') is in "instruction_constructor.py"
+                    _temp_step = np.around((done_time - rospy.get_param('/instr_start_time')) / self.sim_time_step)
+                    self.accu_r += do_instr.r * (do_instr.b ** _temp_step)
+                    self.accu_r_list.append(self.accu_r)
+                    self.time_r_list.append(_temp_step)
+
                     del self.instr_dict[r[0]]
                     self.show_instr()
 
@@ -130,6 +146,15 @@ class TaskMotionPlannerDPSim(TaskMotionPlannerFCFSSim):
                 rospy.loginfo('No instructions on task {0}'.format(self.cur_node))
                 if len(self.instr_dict) > 0:
                     self.plan_task(self.instr_dict)
+
+                # save the accumulative reward, all
+                elif self.save_csv_flag:
+                    rospy.loginfo('Saving accumulative reward')
+                    csv_file = self._pkg_dir + '/config/' + os.path.basename(__file__).split('.')[0] + '_reward.csv'
+                    output_df = pd.DataFrame({'time': self.time_r_list, 'reward': self.accu_r_list})
+                    output_df.to_csv(csv_file, index=False)
+                    rospy.loginfo('Done!')
+                    self.save_csv_flag = False
 
         else:
             rospy.loginfo('Motion: from {0} to {1}'.format(self.cur_node, self.next_node))
