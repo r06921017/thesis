@@ -36,7 +36,7 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
                 self.instr_dest_dict[instr.destination].add(instr.id)
                 self.instr_dict[instr.id] = instr
 
-        rospy.loginfo('self.instr_dict.keys(): {0}'.format(self.instr_dict.keys()))
+        # rospy.loginfo('self.instr_dict.keys(): {0}'.format(self.instr_dict.keys()))
 
         if len(self.opt_seq) > 0:
 
@@ -73,7 +73,6 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
 
             rospy.loginfo('reward_seq: {0}'.format(reward_seq))
             self.opt_seq = list(node_seq[np.argmax(reward_seq)])  # list of instr_id
-            rospy.loginfo('opt_seq: {0}'.format(self.opt_seq))
 
             if self.save_opt_flag:
                 # store theoretical optimal rewards once!
@@ -84,6 +83,8 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
                 __temp_node = self.cur_node
                 __temp_t_list = list()
                 __temp_r_list = list()
+
+                self.save_done_instr_id(id_seq=self.opt_seq)
 
                 for seq_id, instr_id in enumerate(self.opt_seq):
                     __temp_len += self.shortest_path[self.instr_dict[instr_id].destination, __temp_node] + \
@@ -163,7 +164,7 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
                 rospy.loginfo('Saving reward')
                 csv_file = self._pkg_dir + '/config/' + os.path.basename(__file__).split('.')[0] + '.csv'
                 output_df = pd.DataFrame({'time': self.time_r_list, 'reward': self.accu_r_list})
-                output_df.to_csv(csv_file, index=False)
+                output_df.to_csv(csv_file, index=False, columns=['time', 'reward'])
                 rospy.loginfo('Done!')
                 self.instr_counter = -1
 

@@ -17,6 +17,7 @@ import argparse
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from perception import human_id
 import copy
+import pandas as pd
 
 
 class InstructionConstructor:
@@ -24,6 +25,7 @@ class InstructionConstructor:
         self.instr_sub = rospy.Subscriber('/thesis/instruction_buffer', InstructionArray, self.instr_cb, queue_size=10)
         self.verbal_sub = rospy.Subscriber('/Tablet/voice', VoiceMessage, self.verbal_cb, queue_size=10)
         self.temp_sub = rospy.Subscriber('/thesis/int_buffer', Int8, self.int_cb, queue_size=10)
+        self._pkg_dir = rospkg.RosPack().get_path('thesis')
 
         self.instr_pub = rospy.Publisher('/thesis/instruction_buffer', InstructionArray, queue_size=1)
         self.map_graph = create_map_graph()
@@ -213,10 +215,38 @@ class InstructionConstructor:
         self.instr_pub.publish(_instr_list)
         return
 
+    def save_instr(self):
+        rospy.loginfo('Saving instructions')
+        file_name = self._pkg_dir + '/experiments/' + 'input_instr_'+str(args.max_num)+'.csv'
+
+        in_id = list()
+        in_des_ls = list()
+        in_r_list = list()
+        in_b_list = list()
+        in_d_list = list()
+
+        for _, instr in self.instr_dict.iteritems():
+            in_id.append(instr.id)
+            in_des_ls.append(instr.destination)
+            in_r_list.append(instr.r)
+            in_b_list.append(instr.b)
+            in_d_list.append(instr.duration)
+
+        output_df = pd.DataFrame({'id': in_id,
+                                  'destination': in_des_ls,
+                                  'gamma': in_r_list,
+                                  'beta': in_b_list,
+                                  'duration': in_d_list})
+
+        output_df.to_csv(file_name, index=False, columns=['id', 'destination', 'gamma', 'beta', 'duration'])
+        rospy.loginfo('Done!')
+        return
+
     def test_scenario(self):
         if is_random:  # for random generate tasks
+            random.seed(1000)
             max_num = args.max_num
-            des_ls = [random.choice(self.task_loc) for _ in range(max_num)]
+            des_ls = [random.choice(self.task_loc) for _ in range(max_num)]  # destination
             r_list = [random.choice(self.task_priority) for _ in range(max_num)]  # reward list
             b_list = [self.b_dict[r] for r in r_list]  # decay factor list
             d_list = [random.choice(self.task_duration) for _ in range(max_num)]  # duration list
@@ -246,6 +276,7 @@ class InstructionConstructor:
             self.last_id += 1
 
         rospy.loginfo('Total task duration: {0} (s)'.format(sum(d_list)))
+        self.save_instr()  # for experiment evaluation
 
         t = 1
         rospy.loginfo('Sleep for {0} seconds'.format(str(t)))
