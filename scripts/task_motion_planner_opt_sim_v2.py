@@ -59,20 +59,26 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
             node_seq = list(itertools.permutations(self.instr_dict.keys()))
             rospy.logdebug('len node_seq: {0}'.format(len(node_seq)))
 
-            reward_seq = np.zeros(len(node_seq))
+            reward_val = -1.0
             for s_id, seq in enumerate(node_seq):
                 path_len = 0
                 temp_node = self.cur_node
+                seq_reward = 0.0
+
                 for instr_id in seq:
                     temp_duration = self.shortest_path[self.instr_dict[instr_id].destination, temp_node] + \
                                     np.around(self.instr_dict[instr_id].duration / self.sim_time_step)
                     path_len += temp_duration
 
-                    reward_seq[s_id] += self.instr_dict[instr_id].r * (self.instr_dict[instr_id].b ** path_len)
+                    seq_reward += self.instr_dict[instr_id].r * (self.instr_dict[instr_id].b ** path_len)
                     temp_node = self.instr_dict[instr_id].destination
 
-            rospy.loginfo('reward_seq: {0}'.format(reward_seq))
-            self.opt_seq = list(node_seq[np.argmax(reward_seq)])  # list of instr_id
+                # pick a bigger one
+                if seq_reward > reward_val:
+                    reward_val = seq_reward
+                    self.opt_seq = seq
+                    rospy.loginfo('current largest reward: {0}'.format(reward_val))
+                    rospy.loginfo('seq: {0}'.format(self.opt_seq))
 
             if self.save_opt_flag:
                 # store theoretical optimal rewards once!
