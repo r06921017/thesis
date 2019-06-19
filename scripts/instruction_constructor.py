@@ -244,7 +244,7 @@ class InstructionConstructor:
 
     def test_scenario(self):
         if is_random:  # for random generate tasks
-            random.seed(1000)
+            random.seed(int(args.seed))
             max_num = args.max_num
             des_ls = [random.choice(self.task_loc) for _ in range(max_num)]  # destination
             r_list = [random.choice(self.task_priority) for _ in range(max_num)]  # reward list
@@ -318,6 +318,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_num', type=int, default=10)
     parser.add_argument('--is_rand', type=int, default=1)
     parser.add_argument('--is_sim', type=int, default=0)
+    parser.add_argument('--seed', type=int, default=1000)
     args = parser.parse_args(rospy.myargv()[1:])
 
     if args.is_rand == 1:
