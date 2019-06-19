@@ -54,9 +54,9 @@ if __name__ == '__main__':
     num = range(0, max_step+step_gap, step_gap)
     plt.yticks(np.arange(0, 6, 0.25), fontsize=16)
     plt.xticks(num, fontsize=16)
-    plt.xlabel('Time step', fontsize=16)
-    plt.ylabel('Reward value', fontsize=16)
-    plt.title('Accumulative Reward', fontsize=20)
+    plt.xlabel('Time step', fontsize=20)
+    plt.ylabel('Reward value', fontsize=20)
+    plt.title('Accumulative Reward', fontsize=30)
     plt.grid(True)
 
     box = ax.get_position()

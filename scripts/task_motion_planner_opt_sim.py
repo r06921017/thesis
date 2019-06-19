@@ -99,6 +99,7 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
                 opt_csv_file = self._pkg_dir + '/config/' + os.path.basename(__file__).split('.')[0] + '_opt_reward.csv'
                 output_df = pd.DataFrame({'time': __temp_t_list, 'reward': __temp_r_list})
                 output_df.to_csv(opt_csv_file, index=False)
+                rospy.sleep(2)
 
                 self.save_opt_flag = False
                 rospy.loginfo('Done!')

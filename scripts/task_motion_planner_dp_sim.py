@@ -171,6 +171,7 @@ class TaskMotionPlannerDPSim(TaskMotionPlannerFCFSSim):
         output_df = pd.DataFrame({'time': self.time_r_list, 'reward': self.accu_r_list})
         output_df.to_csv(csv_file, index=False, columns=['time', 'reward'])
         rospy.loginfo('Done!')
+        rospy.sleep(1)
         self.save_csv_flag = False
         return
 
@@ -182,6 +183,7 @@ class TaskMotionPlannerDPSim(TaskMotionPlannerFCFSSim):
         file_name = self._pkg_dir + '/experiments/' + os.path.basename(__file__).split('.')[0] + '_done.csv'
         output_df = pd.DataFrame({'done': id_seq})
         output_df.to_csv(file_name, index=False)
+        rospy.sleep(1)
         rospy.loginfo('Done!')
         return
 
