@@ -72,6 +72,11 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFSSim):
                         rospy.loginfo('Do instr {0}: {1}'.format(idx, do_instr.function))
                         rospy.sleep(do_instr.duration)
 
+                        # for experiment evaluation# for experiment evaluation
+                        self.done_instr.append(do_instr.id)
+                        self.cal_accu_reward(do_instr)
+                        # end
+
                         del self.instr_dict[do_instr.id]
                         self.property_key = -1
                         self.instr_dest_dict[self.cur_node].remove(do_instr.id)
