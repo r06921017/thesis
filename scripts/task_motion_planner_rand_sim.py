@@ -73,8 +73,8 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFSSim):
                         rospy.sleep(do_instr.duration)
 
                         # for experiment evaluation# for experiment evaluation
-                        self.done_instr.append(do_instr.id)
                         self.cal_accu_reward(do_instr)
+                        self.done_instr.append(do_instr.id)
                         # end
 
                         del self.instr_dict[do_instr.id]

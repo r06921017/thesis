@@ -79,8 +79,8 @@ class TaskMotionPlannerPFSim(TaskMotionPlannerFCFSSim):
                         rospy.sleep(do_instr.duration)
 
                         # for experiment evaluation# for experiment evaluation
-                        self.done_instr.append(do_instr.id)
                         self.cal_accu_reward(do_instr)
+                        self.done_instr.append(do_instr.id)
                         # end
 
                         del self.instr_dict[do_instr.id]
@@ -128,7 +128,7 @@ class TaskMotionPlannerPFSim(TaskMotionPlannerFCFSSim):
         csv_file = self._pkg_dir + '/experiments/' + os.path.basename(__file__).split('.')[0] + '_reward.csv'
         output_df = pd.DataFrame({'time': self.time_r_list, 'reward': self.accu_r_list})
         output_df.to_csv(csv_file, index=False, columns=['time', 'reward'])
-        rospy.sleep(2)
+        rospy.sleep(1)
         rospy.loginfo('Done!')
         self.save_csv_flag = False
         return
@@ -141,7 +141,7 @@ class TaskMotionPlannerPFSim(TaskMotionPlannerFCFSSim):
         file_name = self._pkg_dir + '/experiments/' + os.path.basename(__file__).split('.')[0] + '_done.csv'
         output_df = pd.DataFrame({'done': id_seq})
         output_df.to_csv(file_name, index=False)
-        rospy.sleep(2)
+        rospy.sleep(1)
         rospy.loginfo('Done!')
         return
 

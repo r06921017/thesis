@@ -102,7 +102,7 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
                     __temp_r_list.append(__temp_reward)
                     __temp_t_list.append(__temp_len)
 
-                opt_csv_file = self._pkg_dir + '/config/' + os.path.basename(__file__).split('.')[0] + '_opt_reward.csv'
+                opt_csv_file = self._pkg_dir+'/experiments/'+os.path.basename(__file__).split('.')[0]+'_opt_reward.csv'
                 output_df = pd.DataFrame({'time': __temp_t_list, 'reward': __temp_r_list})
                 output_df.to_csv(opt_csv_file, index=False, columns=['time', 'reward'])
                 rospy.sleep(2)
@@ -169,7 +169,7 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
         else:
             if self.instr_counter == 0:
                 rospy.loginfo('Saving reward')
-                csv_file = self._pkg_dir + '/config/' + os.path.basename(__file__).split('.')[0] + '.csv'
+                csv_file = self._pkg_dir + '/experiments/' + os.path.basename(__file__).split('.')[0] + '_reward.csv'
                 output_df = pd.DataFrame({'time': self.time_r_list, 'reward': self.accu_r_list})
                 output_df.to_csv(csv_file, index=False, columns=['time', 'reward'])
                 rospy.loginfo('Done!')

@@ -60,7 +60,6 @@ class TaskMotionPlannerSF(TaskMotionPlannerPFSim):
 
         return
 
-
     def cal_accu_reward(self, input_instr):
         # calculate obtained reward
         # rospy.set_param('instr_start_time') is in "instruction_constructor.py"
