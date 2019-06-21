@@ -245,23 +245,37 @@ class TaskMotionPlannerFCFSSim:
 
         return
 
-    def save_accu_reward(self):
+    def save_accu_reward(self, time_list=None, r_list=None, csv_name=None):
         rospy.loginfo('Saving accumulative reward')
-        csv_file = self._pkg_dir + '/exp/instr_'+str(self.max_num)+'_'+str(self.seed)+'/'+self.base_name+'_reward2.csv'
-        output_df = pd.DataFrame({'time': self.time_r_list, 'reward': self.accu_r_list})
+
+        if time_list is None:
+            time_list = self.time_r_list
+        if r_list is None:
+            r_list = self.accu_r_list
+        if csv_name is None:
+            csv_name = self.base_name+'_reward.csv'
+
+        csv_file = self._pkg_dir + '/exp/instr_' + str(self.max_num) + '_' + str(self.seed) + '/' + csv_name
+        output_df = pd.DataFrame({'time': time_list, 'reward': r_list})
         output_df.to_csv(csv_file, index=False, columns=['time', 'reward'])
+
         rospy.sleep(1)
         rospy.loginfo('Done!')
         return
 
-    def save_done_instr_id(self, id_seq=None):
+    def save_done_instr_id(self, id_seq=None, csv_name=None):
         rospy.loginfo('Save done instructions')
+
         if id_seq is None:
             id_seq = self.done_instr
+        if csv_name is None:
+            csv_name = self.base_name+'_done.csv'
+
         rospy.loginfo('done_instr: {0}'.format(id_seq))
-        file_name = self._pkg_dir+'/exp/instr_'+str(self.max_num)+'_'+str(self.seed)+'/'+self.base_name+'_done2.csv'
+        file_name = self._pkg_dir + '/exp/instr_' + str(self.max_num) + '_' + str(self.seed) + '/' + csv_name
         output_df = pd.DataFrame({'done': id_seq})
         output_df.to_csv(file_name, index=False)
+
         rospy.sleep(1)
         rospy.loginfo('Done!')
         return
