@@ -6,7 +6,6 @@ Construct instructions based on human request and robot perception.
 
 import rospy
 import rospkg
-import rosnode
 from jsk_gui_msgs.msg import VoiceMessage
 from thesis.msg import *
 from decision_making.node_viz import create_map_graph
@@ -322,7 +321,7 @@ class InstructionConstructor:
 
 
 if __name__ == '__main__':
-    rospy.init_node(os.path.basename(__file__).split('.')[0], anonymous=True, log_level=rospy.DEBUG)
+    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.DEBUG)
     parser = argparse.ArgumentParser(description='Check roslaunch arg')
     parser.add_argument('--max_num', type=int, default=10)
     parser.add_argument('--is_rand', type=int, default=1)
