@@ -12,6 +12,7 @@ import random
 class TaskMotionPlannerPF(TaskMotionPlannerFCFSSim):
     def __init__(self):
         TaskMotionPlannerFCFSSim.__init__(self)
+        self.base_name = os.path.basename(__file__).split('.')[0]
         self.property_key = -1
 
     @staticmethod
@@ -99,6 +100,7 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFSSim):
                 elif self.save_csv_flag:
                     self.save_done_instr_id()
                     self.save_accu_reward()
+                    self.save_csv_flag = False
 
         else:
             rospy.loginfo('Motion: from {0} to {1}'.format(self.cur_node, self.next_node))
@@ -106,38 +108,37 @@ class TaskMotionPlannerPF(TaskMotionPlannerFCFSSim):
 
         return
 
-    def cal_accu_reward(self, input_instr):
-        # calculate obtained reward
-        # rospy.set_param('instr_start_time') is in "instruction_constructor.py"
-        _temp_step = np.around((time.time() - rospy.get_param('/instr_start_time')) / self.sim_time_step)
-        self.accu_r += input_instr.r * (input_instr.b ** _temp_step)
-        self.accu_r_list.append(self.accu_r)
-        self.time_r_list.append(_temp_step)
-        rospy.logdebug('accu reward: {0}'.format(self.accu_r))
-
-        return
-
-    def save_accu_reward(self):
-        rospy.loginfo('Saving accumulative reward')
-        csv_file = self._pkg_dir + '/experiments/' + os.path.basename(__file__).split('.')[0] + '_reward.csv'
-        output_df = pd.DataFrame({'time': self.time_r_list, 'reward': self.accu_r_list})
-        output_df.to_csv(csv_file, index=False, columns=['time', 'reward'])
-        rospy.sleep(2)
-        rospy.loginfo('Done!')
-        self.save_csv_flag = False
-        return
-
-    def save_done_instr_id(self, id_seq=None):
-        rospy.loginfo('Save done instructions')
-        if id_seq is None:
-            id_seq = self.done_instr
-        rospy.loginfo('done_instr: {0}'.format(id_seq))
-        file_name = self._pkg_dir + '/experiments/' + os.path.basename(__file__).split('.')[0] + '_done.csv'
-        output_df = pd.DataFrame({'done': id_seq})
-        output_df.to_csv(file_name, index=False)
-        rospy.sleep(2)
-        rospy.loginfo('Done!')
-        return
+    # def cal_accu_reward(self, input_instr):
+    #     # calculate obtained reward
+    #     # rospy.set_param('instr_start_time') is in "instruction_constructor.py"
+    #     _temp_step = (time.time() - rospy.get_param('/instr_start_time')) / self.sim_time_step
+    #     self.accu_r += input_instr.r * (input_instr.b ** _temp_step)
+    #     self.accu_r_list.append(self.accu_r)
+    #     self.time_r_list.append(_temp_step)
+    #     rospy.logdebug('accu reward: {0}'.format(self.accu_r))
+    #
+    #     return
+    #
+    # def save_accu_reward(self):
+    #     rospy.loginfo('Saving accumulative reward')
+    #     csv_file = self._pkg_dir + '/experiments/' + os.path.basename(__file__).split('.')[0] + '_reward.csv'
+    #     output_df = pd.DataFrame({'time': self.time_r_list, 'reward': self.accu_r_list})
+    #     output_df.to_csv(csv_file, index=False, columns=['time', 'reward'])
+    #     rospy.sleep(2)
+    #     rospy.loginfo('Done!')
+    #     return
+    #
+    # def save_done_instr_id(self, id_seq=None):
+    #     rospy.loginfo('Save done instructions')
+    #     if id_seq is None:
+    #         id_seq = self.done_instr
+    #     rospy.loginfo('done_instr: {0}'.format(id_seq))
+    #     file_name = self._pkg_dir + '/experiments/' + os.path.basename(__file__).split('.')[0] + '_done.csv'
+    #     output_df = pd.DataFrame({'done': id_seq})
+    #     output_df.to_csv(file_name, index=False)
+    #     rospy.sleep(2)
+    #     rospy.loginfo('Done!')
+    #     return
 
 
 if __name__ == '__main__':

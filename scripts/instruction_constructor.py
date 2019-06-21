@@ -6,6 +6,7 @@ Construct instructions based on human request and robot perception.
 
 import rospy
 import rospkg
+import rosnode
 from jsk_gui_msgs.msg import VoiceMessage
 from thesis.msg import *
 from decision_making.node_viz import create_map_graph
@@ -77,7 +78,7 @@ class InstructionConstructor:
         self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 5, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}
 
     def instr_cb(self, in_instructions):
-        rospy.loginfo('instruction callback')
+        rospy.logdebug('instruction callback')
         self.instr_dict = dict()
 
         # Convert InstructionArray into dictionary
@@ -87,7 +88,7 @@ class InstructionConstructor:
                 self.instr_dest_dict[instr.destination].add(instr.id)
                 self.instr_dict[instr.id] = instr
 
-        rospy.loginfo('After instruction callback ...')
+        rospy.logdebug('After instruction callback ...')
         self.show_instr()
         return
 
@@ -217,7 +218,15 @@ class InstructionConstructor:
 
     def save_instr(self):
         rospy.loginfo('Saving instructions')
-        file_name = self._pkg_dir + '/experiments/' + 'input_instr_'+str(args.max_num)+'.csv'
+        dir_name = self._pkg_dir + '/exp/instr_' + str(args.max_num) + '_' + str(args.seed)
+
+        if os.path.exists(dir_name):
+            rospy.logdebug("Directory {0} already exists!".format(dir_name))
+        else:
+            os.makedirs(dir_name)
+            rospy.logdebug("Directory {0} create!".format(dir_name))
+
+        file_name = dir_name + '/' + 'instr.csv'
 
         in_id = list()
         in_des_ls = list()
@@ -313,7 +322,7 @@ class InstructionConstructor:
 
 
 if __name__ == '__main__':
-    rospy.init_node(os.path.basename(__file__).split('.')[0], anonymous=True, log_level=rospy.INFO)
+    rospy.init_node(os.path.basename(__file__).split('.')[0], anonymous=True, log_level=rospy.DEBUG)
     parser = argparse.ArgumentParser(description='Check roslaunch arg')
     parser.add_argument('--max_num', type=int, default=10)
     parser.add_argument('--is_rand', type=int, default=1)
@@ -334,6 +343,13 @@ if __name__ == '__main__':
     if args.is_sim == 0:
         instr_constructor.run()
     elif args.is_sim == 1:
+        rospy.set_param('/thesis/seed', args.seed)
+        rospy.set_param('/thesis/max_num', args.max_num)
+        rospy.sleep(0.2)
+
+        while not rospy.get_param('/thesis/init_tmp', False):
+            pass
+
         instr_constructor.test_scenario()
     else:
         rospy.logerr('is_sim only supports 0 or 1.')

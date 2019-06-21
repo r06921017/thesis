@@ -13,6 +13,7 @@ class TaskMotionPlannerOptSim(TaskMotionPlannerFCFSSim):
         self.cur_node: the node where robot starts to move, initial at charge (2), type: int
         """
         TaskMotionPlannerFCFSSim.__init__(self)
+        self.base_name = os.path.basename(__file__).split('.')[0]
         self.shortest_path = nx.floyd_warshall_numpy(self.map_graph)
         self.reward_list = list()
         self.opt_seq = list()

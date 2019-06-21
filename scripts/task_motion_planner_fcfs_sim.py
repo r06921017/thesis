@@ -47,6 +47,10 @@ class TaskMotionPlannerFCFSSim:
         self.time_r_list = [0.0]
         self.save_csv_flag = False
         self.done_instr = list()
+        self.max_num = int(rospy.get_param('/thesis/max_num', 10))
+        self.seed = int(rospy.get_param('/thesis/seed', 1000))
+        self.base_name = os.path.basename(__file__).split('.')[0]
+        rospy.set_param('/thesis/init_tmp', True)
 
     def show_instr(self):
         _loc_symbol = {0: 'office',
@@ -222,6 +226,7 @@ class TaskMotionPlannerFCFSSim:
                 elif self.save_csv_flag:
                     self.save_done_instr_id()
                     self.save_accu_reward()
+                    self.save_csv_flag = False
 
         else:
             rospy.loginfo('Motion: from {0} to {1}'.format(self.cur_node, self.next_node))
@@ -232,7 +237,7 @@ class TaskMotionPlannerFCFSSim:
     def cal_accu_reward(self, input_instr):
         # calculate obtained reward
         # rospy.set_param('instr_start_time') is in "instruction_constructor.py"
-        _temp_step = np.around((time.time() - rospy.get_param('/instr_start_time')) / self.sim_time_step)
+        _temp_step = (time.time() - rospy.get_param('/instr_start_time')) / self.sim_time_step
         self.accu_r += input_instr.r * (input_instr.b ** _temp_step)
         self.accu_r_list.append(self.accu_r)
         self.time_r_list.append(_temp_step)
@@ -242,12 +247,11 @@ class TaskMotionPlannerFCFSSim:
 
     def save_accu_reward(self):
         rospy.loginfo('Saving accumulative reward')
-        csv_file = self._pkg_dir + '/experiments/' + os.path.basename(__file__).split('.')[0] + '_reward.csv'
+        csv_file = self._pkg_dir + '/exp/instr_'+str(self.max_num)+'_'+str(self.seed)+'/'+self.base_name+'_reward2.csv'
         output_df = pd.DataFrame({'time': self.time_r_list, 'reward': self.accu_r_list})
         output_df.to_csv(csv_file, index=False, columns=['time', 'reward'])
-        rospy.sleep(2)
+        rospy.sleep(1)
         rospy.loginfo('Done!')
-        self.save_csv_flag = False
         return
 
     def save_done_instr_id(self, id_seq=None):
@@ -255,10 +259,10 @@ class TaskMotionPlannerFCFSSim:
         if id_seq is None:
             id_seq = self.done_instr
         rospy.loginfo('done_instr: {0}'.format(id_seq))
-        file_name = self._pkg_dir + '/experiments/' + os.path.basename(__file__).split('.')[0] + '_done.csv'
+        file_name = self._pkg_dir+'/exp/instr_'+str(self.max_num)+'_'+str(self.seed)+'/'+self.base_name+'_done2.csv'
         output_df = pd.DataFrame({'done': id_seq})
         output_df.to_csv(file_name, index=False)
-        rospy.sleep(2)
+        rospy.sleep(1)
         rospy.loginfo('Done!')
         return
 
@@ -279,6 +283,6 @@ class TaskMotionPlannerFCFSSim:
 
 
 if __name__ == '__main__':
-    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
+    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.DEBUG)
     tamp = TaskMotionPlannerFCFSSim()
     tamp.run_plan_viz()
