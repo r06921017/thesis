@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-END=5
+END=10
 
 gnome-terminal --tab -x sh -c "rosparam set /thesis/init_tmp false"
 
-for i in $(seq 0 ${END});
+for i in $(seq 6 ${END});
 do
     SEED=$((1000 + i))
     echo ${SEED}
