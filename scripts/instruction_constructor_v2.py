@@ -73,8 +73,11 @@ class InstructionConstructor:
         self.task_loc = [0, 1, 2, 5, 6, 7]
         self.task_priority = range(1, 5)  # 1~4
         self.task_duration = range(1, 10)  # 1~9
-        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}
-        self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 5, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}
+
+        # scenario modeling
+        self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 5, 5: 8}  # {task_priority (emotion: 2, 3, 4): gamma}
+        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 5: 0.96, 8: 0.98}  # {gamma: beta}
+        self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 5, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}  # {function: time(sec)}
 
     def instr_cb(self, in_instructions):
         rospy.logdebug('instruction callback')
@@ -125,7 +128,7 @@ class InstructionConstructor:
             """
             Convert emotion into status and reward
             :param compound_score: emotional sentiment score from vader
-            :return: emotions (0:positive, 1:neutral, 2:negative)
+            :return: emotions (0:positive, 1:neutral, 2:negative), emotion+2 = task priority
             """
             if compound_score > 0.05:  # positive
                 return 0
@@ -169,8 +172,8 @@ class InstructionConstructor:
                             temp_des = self.human_dict['name'][instr_target].location
 
                         temp_instr = Instruction(id=self.last_id,
-                                                 r=emotion,
-                                                 b=self.b_dict[emotion+2],
+                                                 r=self.gamma_dict[emotion+2],
+                                                 b=self.b_dict[self.gamma_dict[emotion+2]],
                                                  type=0,
                                                  duration=self.dur_dict[ver_i[1][i]],
                                                  source=instr_source,
@@ -185,8 +188,8 @@ class InstructionConstructor:
 
         if last_id_buf == self.last_id:  # NOP for not detecting key words
             temp_instr = Instruction(id=self.last_id,
-                                     r=emotion,
-                                     b=self.b_dict[emotion + 2],
+                                     r=self.gamma_dict[emotion+2],
+                                     b=self.b_dict[self.gamma_dict[emotion+2]],
                                      type=0,
                                      duration=self.dur_dict[0],
                                      source=instr_source,
@@ -256,7 +259,6 @@ class InstructionConstructor:
             max_num = args.max_num
             des_ls = [random.choice(self.task_loc) for _ in range(max_num)]  # destination
             r_list = [random.choice(self.task_priority) for _ in range(max_num)]  # reward list
-            b_list = [self.b_dict[r] for r in r_list]  # decay factor list
             d_list = [random.choice(self.task_duration) for _ in range(max_num)]  # duration list
 
         else:
@@ -273,13 +275,13 @@ class InstructionConstructor:
             des_ls = [0, 5, 5]  # destination
             r_list = [2, 2, 1]  # reward
             d_list = [5, 2, 8]  # duration
-            b_list = [self.b_dict[r] for r in r_list]  # decay factor list
 
             max_num = len(des_ls)
 
         for i in range(max_num):
             temp_i = Instruction(id=self.last_id, type=0, duration=d_list[i], source='Charlie', status=0,
-                                 r=r_list[i], b=b_list[i], function=0, target='Bob', destination=des_ls[i], prev_id=-1)
+                                 r=self.gamma_dict[r_list[i]], b=self.b_dict[self.gamma_dict[r_list[i]]],
+                                 function=0, target='Bob', destination=des_ls[i], prev_id=-1)
             self.instr_dict[self.last_id] = temp_i
             self.last_id += 1
 
@@ -346,6 +348,7 @@ if __name__ == '__main__':
         rospy.set_param('/thesis/max_num', args.max_num)
         rospy.sleep(0.2)
 
+        rospy.loginfo('Waiting for /thesis/init_tmp ...')
         while not rospy.get_param('/thesis/init_tmp', False):
             pass
 
