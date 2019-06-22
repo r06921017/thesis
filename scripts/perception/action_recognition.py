@@ -173,7 +173,7 @@ def person_callback(data):
 
     if rospy.get_param('/thesis/action_on', False):
         try:
-            img_stitch = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching', Image, timeout=10), "bgr8")
+            _img = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching', Image, timeout=10), "bgr8")
 
         except rospy.exceptions.ROSException:
             rospy.logerr("Error when fetching img_stitching.")
@@ -183,7 +183,7 @@ def person_callback(data):
 
         for joints in person_list:
             # human identification
-            human_result = identify_single_human(img_stitch, joints, human_info, None)
+            human_result = identify_single_human(_img, joints, human_info, None)
 
             hand_obj_list, eye_obj_list, hand_eye = hand_eye_obj(joints)
             action_id = get_action(hand_obj_list, eye_obj_list, hand_eye)
