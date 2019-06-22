@@ -71,12 +71,13 @@ class InstructionConstructor:
 
         # ignore emergency tasks
         self.task_loc = [0, 1, 2, 5, 6, 7]
-        self.task_priority = range(1, 5)  # 1~4
+        # self.task_priority = range(1, 5)  # 1~4
         self.task_duration = range(1, 10)  # 1~9
 
         # scenario modeling
         self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 5, 5: 8}  # {task_priority (emotion: 2, 3, 4): gamma}
-        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 5: 0.96, 8: 0.98}  # {gamma: beta}
+        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}  # {task_priority (emotion: 2, 3, 4): beta}
+        self.task_priority = sorted(self.gamma_dict.keys())
         self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 5, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}  # {function: time(sec)}
 
     def instr_cb(self, in_instructions):
@@ -173,7 +174,7 @@ class InstructionConstructor:
 
                         temp_instr = Instruction(id=self.last_id,
                                                  r=self.gamma_dict[emotion+2],
-                                                 b=self.b_dict[self.gamma_dict[emotion+2]],
+                                                 b=self.b_dict[emotion+2],
                                                  type=0,
                                                  duration=self.dur_dict[ver_i[1][i]],
                                                  source=instr_source,
@@ -189,7 +190,7 @@ class InstructionConstructor:
         if last_id_buf == self.last_id:  # NOP for not detecting key words
             temp_instr = Instruction(id=self.last_id,
                                      r=self.gamma_dict[emotion+2],
-                                     b=self.b_dict[self.gamma_dict[emotion+2]],
+                                     b=self.b_dict[emotion+2],
                                      type=0,
                                      duration=self.dur_dict[0],
                                      source=instr_source,
@@ -280,7 +281,7 @@ class InstructionConstructor:
 
         for i in range(max_num):
             temp_i = Instruction(id=self.last_id, type=0, duration=d_list[i], source='Charlie', status=0,
-                                 r=self.gamma_dict[r_list[i]], b=self.b_dict[self.gamma_dict[r_list[i]]],
+                                 r=self.gamma_dict[r_list[i]], b=self.b_dict[r_list[i]],
                                  function=0, target='Bob', destination=des_ls[i], prev_id=-1)
             self.instr_dict[self.last_id] = temp_i
             self.last_id += 1

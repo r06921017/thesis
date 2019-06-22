@@ -3,12 +3,20 @@
 """
 Calculate the similarity of scheduling order
 """
+import rospy
+import argparse
 import numpy as np
 import pandas as pd
 import rospkg
 
 if __name__ == '__main__':
-    _exp_dir = rospkg.RosPack().get_path('thesis') + '/experiments/instr_10_1020/'
+    parser = argparse.ArgumentParser(description='Check roslaunch arg')
+    parser.add_argument('--max_num', type=int, default=10)
+    parser.add_argument('--seed', type=int, default=1000)
+    args = parser.parse_args(rospy.myargv()[1:])
+
+    _exp_dir = rospkg.RosPack().get_path('thesis') + '/exp2/instr_' + str(args.max_num) + '_' + str(args.seed) + '/'
+
     planners = ['opt', 'fcfs', 'rand', 'pf', 'sf', 'dp']
 
     seq = list()
