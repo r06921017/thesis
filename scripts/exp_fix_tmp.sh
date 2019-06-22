@@ -2,7 +2,7 @@
 
 gnome-terminal --tab -x sh -c "rosparam set /thesis/init_tmp false"
 
-gnome-terminal --tab -x sh -c "rosrun thesis instruction_constructor_v2.py  --max_num 10 --is_sim 1 --is_rand 0; exec bash"
+gnome-terminal --tab -x sh -c "rosrun thesis instruction_constructor_v2.py  --max_num 10 --is_sim 1 --is_rand 0"
 sleep 2
 gnome-terminal --tab -x sh -c "rosrun thesis task_motion_planner_opt_sim.py"
 sleep 1000
