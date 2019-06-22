@@ -6,10 +6,17 @@ Draw pyplot about accumulative reward
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import rospy
 import rospkg
+import argparse
 
 if __name__ == '__main__':
-    _exp_dir = rospkg.RosPack().get_path('thesis')+'/experiments/'
+    parser = argparse.ArgumentParser(description='Check roslaunch arg')
+    parser.add_argument('--max_num', type=int, default=10)
+    parser.add_argument('--seed', type=int, default=1000)
+    args = parser.parse_args(rospy.myargv()[1:])
+
+    _exp_dir = rospkg.RosPack().get_path('thesis') + '/exp2/instr_' + str(args.max_num) + '_' + str(args.seed) + '/'
     temp_df = pd.read_csv(_exp_dir + 'task_motion_planner_fcfs_sim_reward.csv')
     fcfs_time = temp_df['time'].tolist()
     fcfs_reward = temp_df['reward'].tolist()
@@ -30,7 +37,7 @@ if __name__ == '__main__':
     dp_time = temp_df['time'].tolist()
     dp_reward = temp_df['reward'].tolist()
 
-    temp_df = pd.read_csv(_exp_dir + 'task_motion_planner_opt_sim_opt_reward.csv')
+    temp_df = pd.read_csv(_exp_dir + 'opt_reward.csv')
     opt_time = temp_df['time'].tolist()
     opt_reward = temp_df['reward'].tolist()
 
@@ -43,7 +50,7 @@ if __name__ == '__main__':
     ax.tick_params(labelright=True)
 
     plt.plot(opt_time, opt_reward, linewidth=3.0, color='deeppink', marker='*', ms=15, label='Opt', zorder=0)
-    plt.plot(opt_real_time, opt_real_reward, linewidth=3.0, color='pink', marker='v', ms=14, label='Opt w/p', zorder=1)
+    plt.plot(opt_real_time, opt_real_reward, linewidth=3.0, color='grey', marker='v', ms=14, label='Opt w/m', zorder=1)
     plt.plot(fcfs_time, fcfs_reward, linewidth=3.0, color='blue', marker='o', ms=14, label='FCFS', zorder=2)
     plt.plot(rand_time, rand_reward, linewidth=3.0, color='purple', marker='D', ms=14, label='Random', zorder=3)
     plt.plot(pf_time, pf_reward, linewidth=3.0, color='green', marker='P', ms=14, label='PF', zorder=4)
@@ -55,8 +62,8 @@ if __name__ == '__main__':
     num = range(0, max_step+step_gap, step_gap)
 
     reward_bound = np.ceil(opt_reward[-1])
-    reward_step = 0.25
-    plt.yticks(np.arange(0, reward_bound, 0.25), fontsize=16)
+    reward_step = 0.5
+    plt.yticks(np.arange(0, reward_bound+reward_step, reward_step), fontsize=16)
     plt.xticks(num, fontsize=16)
     plt.xlabel('Time step', fontsize=20)
     plt.ylabel('Reward value', fontsize=20)
