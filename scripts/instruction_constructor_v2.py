@@ -259,29 +259,31 @@ class InstructionConstructor:
             random.seed(int(args.seed))
             max_num = args.max_num
             des_ls = [random.choice(self.task_loc) for _ in range(max_num)]  # destination
-            r_list = [random.choice(self.task_priority) for _ in range(max_num)]  # reward list
+            priority_list = [random.choice(self.task_priority) for _ in range(max_num)]  # reward list
             d_list = [random.choice(self.task_duration) for _ in range(max_num)]  # duration list
 
         else:
-            # des_ls = [5, 7, 0, 1, 1, 1, 0, 0, 7, 5]  # destination
-            # r_list = [3, 4, 2, 4, 1, 3, 1, 4, 3, 3]  # reward
-            # d_list = [9, 1, 3, 7, 7, 6, 3, 2, 2, 5]  # duration
-            # b_list = [self.b_dict[r] for r in r_list]  # decay factor list
-
             # des_ls = [0, 5, 5, 0, 7, 2, 1, 6, 2, 7, 2, 6, 1, 6, 0, 6, 5]  # destination
-            # r_list = [2, 2, 1, 2, 1, 3, 2, 2, 2, 3, 1, 4, 1, 2, 4, 1, 4]  # reward
+            # priority_list = [2, 2, 1, 2, 1, 3, 2, 2, 2, 3, 1, 4, 1, 2, 4, 1, 4]  # reward
             # d_list = [9, 2, 8, 3, 6, 9, 3, 7, 3, 8, 5, 7, 9, 1, 6, 5, 9]  # duration
-            # b_list = [self.b_dict[r] for r in r_list]  # decay factor list
 
-            des_ls = [0, 5, 5]  # destination
-            r_list = [2, 2, 1]  # reward
-            d_list = [5, 2, 8]  # duration
+            _test_instr = [(2, 5, 10), (2, 3, 2), (0, 1, 1), (1, 1, 3), (0, 2, 3),
+                           (6, 3, 5), (5, 1, 2), (6, 4, 6), (7, 2, 2), (6, 5, 7)]  # (dest, priority, beta)
+
+            des_ls = list()
+            priority_list = list()
+            d_list = list()
+
+            for instr in _test_instr:
+                des_ls.append(instr[0])
+                priority_list.append(instr[1])
+                d_list.append(instr[2])
 
             max_num = len(des_ls)
 
         for i in range(max_num):
             temp_i = Instruction(id=self.last_id, type=0, duration=d_list[i], source='Charlie', status=0,
-                                 r=self.gamma_dict[r_list[i]], b=self.b_dict[r_list[i]],
+                                 r=self.gamma_dict[priority_list[i]], b=self.b_dict[priority_list[i]],
                                  function=0, target='Bob', destination=des_ls[i], prev_id=-1)
             self.instr_dict[self.last_id] = temp_i
             self.last_id += 1
@@ -329,7 +331,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_num', type=int, default=10)
     parser.add_argument('--is_rand', type=int, default=1)
     parser.add_argument('--is_sim', type=int, default=0)
-    parser.add_argument('--seed', type=int, default=1000)
+    parser.add_argument('--seed', type=int, default=1111)
     args = parser.parse_args(rospy.myargv()[1:])
 
     if args.is_rand == 1:
