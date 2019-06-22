@@ -293,7 +293,7 @@ class TaskMotionPlannerFCFSSim:
             self.plan_motion_viz()
             rate.sleep()
 
-        rospy.set_param('/thesis/init_tmp', False)
+        # rospy.set_param('/thesis/init_tmp', False)
         return
 
 
