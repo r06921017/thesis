@@ -147,6 +147,14 @@ def identify_human(h_info, j_features, person_list):
 
 
 def identify_single_human(img, joints, h_info, j_features):
+    """
+    Check matching in the human dataset
+    :param img: input images
+    :param joints: human joints from openpose
+    :param h_info: human in the dataset
+    :param j_features: the joints for storing
+    :return: Human data structure or None
+    """
     if h_info is None:
         h_info = load_human_info(rospkg.RosPack().get_path('thesis') + '/human_info/')
 
@@ -162,10 +170,10 @@ def identify_single_human(img, joints, h_info, j_features):
     human_result = h_info[np.argmin(temp_sim)] if np.min(temp_sim) < 150. else None
 
     if human_result is None:
-        print "New to this person."
+        rospy.logwarn("New to this person.")
 
     else:
-        print 'similar to ', human_result.name
+        rospy.loginfo('similar to {0}'.format(human_result.name))
 
     return human_result
 

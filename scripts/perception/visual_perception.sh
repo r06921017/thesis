@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 #gnome-terminal --tab -x sh -c "rosparam set /thesis/camera /thesis/img_stitching"
-gnome-terminal --tab -x sh -c  "rosrun thesis img_stitching.py"
+gnome-terminal --tab -x sh -c "rosparam set /thesis/use_openpose True"
+#gnome-terminal --tab -x sh -c  "rosrun thesis img_stitching.py"
 gnome-terminal --tab -x sh -c "roslaunch thesis yolo_pepper_stitching.launch"
 sleep 5
 gnome-terminal --tab -x sh -c "rosrun thesis pepper_openpose.py"

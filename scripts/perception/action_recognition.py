@@ -7,11 +7,13 @@ import rospy
 import rospkg
 import numpy as np
 import pandas as pd
+import argparse
 from numpy.linalg import norm
 from tfpose_ros.msg import Persons
 from darknet_ros_msgs.msg import *
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
+from std_msgs.msg import Int8
 
 from human_id import load_human_info, get_people_joints, identify_single_human, store_human_info
 
@@ -48,7 +50,11 @@ def prob_norm(vec):
     return vec.astype(np.float) / np.sum(vec) if np.sum(vec) > 0. else vec
 
 
-def hand_eye_obj(joints, face_range=1, angle_range=40):  # pixel unit
+def get_round(num):
+    return np.around(num, decimals=2)
+
+
+def hand_eye_obj(joints, face_range=1, angle_range=40, obj_eye_range=60):  # pixel unit
 
     hand_obj_list = []
     eye_obj_list = []
@@ -73,7 +79,7 @@ def hand_eye_obj(joints, face_range=1, angle_range=40):  # pixel unit
 
     # check whether human is facing robot or not
     if rface_len >= 0 and lface_len >= 0 and np.abs(rface_len - lface_len) < face_range:
-        print 'human facing robot'
+        rospy.logwarn('Human is facing robot')
 
     else:  # human not facing robot
         ear = joints[16] if rface_len > lface_len else joints[17]  # check right or left ear
@@ -107,21 +113,19 @@ def hand_eye_obj(joints, face_range=1, angle_range=40):  # pixel unit
             # check if eyes are looking at object, calculate the angle btw object and eyes
             obj_vec = obj_pos - ear
             obj_eye_angle = vector_angle(eye_vec, obj_vec)
+            rospy.loginfo('eye to {0} angle = {1}'.format(obj.Class, get_round(obj_eye_angle)))
 
-            # if __debug__:
-            #     print 'eye obj angle = ', obj_eye_angle
-
-            if np.abs(obj_eye_angle) < angle_range:  # unit: degree
+            if np.abs(obj_eye_angle) < obj_eye_range:  # unit: degree
                 eye_obj_list.append(obj)
 
-        # if __debug__:
-            # print 'rhand_vec = ', rhand_vec
-            # print 'lhand_vec = ', lhand_vec
-            # print 'eye_vec   = ', eye_vec
-            # print 'hand obj list = ', [ele.Class for ele in hand_obj_list]
-            # print 'eye obj list  = ', [ele.Class for ele in eye_obj_list]
-            # print 'hand eye angle = ', rhand_eye_angle, lhand_eye_angle
-            # print 'looking at hand? ', hand_eye
+        rospy.logdebug('rhand_vec = {0}'.format(get_round(rhand_vec)))
+        rospy.logdebug('lhand_vec = {0}'.format(get_round(lhand_vec)))
+        rospy.logdebug('eye_vec   = {0}'.format(get_round(eye_vec)))
+
+        rospy.loginfo('hand obj list = {0}'.format([ele.Class for ele in hand_obj_list]))
+        rospy.loginfo('eye obj list  = {0}'.format([ele.Class for ele in eye_obj_list]))
+        rospy.loginfo('hand eye angle = {0}, {1}'.format(get_round(rhand_eye_angle), get_round(lhand_eye_angle)))
+        rospy.loginfo('looking at hand? {0}'.format(hand_eye))
 
     return hand_obj_list, eye_obj_list, hand_eye
 
@@ -134,31 +138,35 @@ def get_action(hand_obj_list, eye_obj_list, hand_eye):
     :param hand_eye: true if human looks at hands
     :return: index with max action probability
     """
+    whand = 1.0
+    weye = 1.2
     p_acts_hand = np.zeros(action_num, np.float)  # shape = (action_num,)
     p_acts_eye = np.zeros(action_num, np.float)  # shape = (action_num,)
 
     for obj in hand_obj_list:
+        rospy.logdebug('hand obj, prob: {0}, {1}'.format(obj.Class, obj.probability))
         p_acts_hand += prob_norm(hand_acts.loc[obj.Class, :].values) * obj.probability
 
     for obj in eye_obj_list:
+        rospy.logdebug('eye obj, prob: {0}, {1}'.format(obj.Class, obj.probability))
         p_acts_eye += prob_norm(eyes_acts.loc[obj.Class, :].values) * obj.probability
 
-    if np.sum(p_acts_hand) == 0.:
-        p_acts_hand[-1] = 1.
-
-    if np.sum(p_acts_eye) == 0.:
-        p_acts_eye[-1] = 1.
+    # if np.sum(p_acts_hand) == 0.:
+    #     p_acts_hand[-1] = 1.
+    #
+    # if np.sum(p_acts_eye) == 0.:
+    #     p_acts_eye[-1] = 1.
 
     p_acts_hand = prob_norm(p_acts_hand)  # normalize the probability
     p_acts_eye = prob_norm(p_acts_eye)  # normalize the probability
 
-    p_acts = prob_norm(p_acts_hand + p_acts_eye * 1.2 + p_eye_hand * hand_eye)
+    p_acts = prob_norm(p_acts_hand * whand + p_acts_eye * weye + p_eye_hand * hand_eye)
     act_id = np.argmax(p_acts) if np.max(p_acts) > 0.25 else -1
 
-    rospy.logdebug('p(act|hand) = {0}'.format(p_acts_hand))
-    rospy.logdebug('p(act|eyes) = {0}'.format(p_acts_eye))
-    rospy.logdebug('p(action)   = {0}'.format(p_acts))
-    rospy.logdebug('action = {0}'.format(action_cat[act_id]))
+    rospy.loginfo('p(act|hand) = {0}'.format(p_acts_hand))
+    rospy.loginfo('p(act|eyes) = {0}'.format(p_acts_eye))
+    rospy.loginfo('p(action)   = {0}'.format(p_acts))
+    rospy.loginfo('action = {0}'.format(action_cat[act_id]))
 
     return act_id
 
@@ -185,7 +193,7 @@ def person_callback(data):
 
             hand_obj_list, eye_obj_list, hand_eye = hand_eye_obj(joints)
             action_id = get_action(hand_obj_list, eye_obj_list, hand_eye)
-            print 'action_id = ', action_id
+            rospy.loginfo('action = {0}. {1}'.format(action_id, action_cat[action_id]))
 
             if human_result is not None:
                 # Add action to human
@@ -197,6 +205,11 @@ def person_callback(data):
                     human_result.location = rospy.get_param('/thesis/pepper_location')
 
                 store_human_info(human_result)
+
+            # for experiments
+            if is_eval:
+                action_msg = Int8(data=action_id)
+                eval_pub.publish(action_msg)
 
     return
 
@@ -211,21 +224,38 @@ def get_action_cat():
 
 
 if __name__ == '__main__':
+    # add arg parser
+    parser = argparse.ArgumentParser(description='whether this is for evaluation')
+    parser.add_argument('--eval', type=int, default=0)
+    args = parser.parse_args(rospy.myargv()[1:])
+
+    if args.eval == 1:
+        is_eval = True
+    elif args.eval == 0:
+        is_eval = False
+    else:
+        is_eval = None
+        rospy.logerr('is_rand only supports 0 or 1.')
+        exit(1)
+
     # global const for action recognition
     pkg_dir = rospkg.RosPack().get_path('thesis')
     config_dir = pkg_dir + '/config/'
     human_info_dir = rospkg.RosPack().get_path('thesis') + '/human_info/'
 
+    action_results = list()
+
     # define ros topic names
     image_topic = rospy.get_param('/thesis/camera', '/thesis/img_stitching')
     pose_topic = '/thesis/human_pose'
+    out_topic = '/thesis/eval_action'
 
     hand_acts = pd.read_csv(config_dir + 'hand_actions.csv', sep=',')  # DataFrame
     eyes_acts = pd.read_csv(config_dir + 'eyes_actions.csv', sep=',')  # DataFrame
     eye_hand_acts = pd.read_csv(config_dir + 'eyes_hand.csv', sep=',')  # DataFrame
     p_eye_hand = prob_norm(eye_hand_acts.values[0])  # shape=(action_num,)
 
-    action_cat = hand_acts.columns.to_list()  # category of actions
+    action_cat = eye_hand_acts.columns.to_list()  # category of actions
     action_num = len(action_cat)
     part_num = 18
     rospy.set_param('action_cat', action_cat)
@@ -234,8 +264,12 @@ if __name__ == '__main__':
     cv_bridge = CvBridge()
     human_info = load_human_info(human_info_dir)
 
-    rospy.init_node('action_recognition', log_level=rospy.DEBUG)
+    rospy.init_node('action_recognition', log_level=rospy.INFO)
     rospy.loginfo('action_reg start!')
 
     rospy.Subscriber(pose_topic, Persons, person_callback, queue_size=1)
+
+    if is_eval:
+        eval_pub = rospy.Publisher(out_topic, Int8, queue_size=1)
+
     rospy.spin()

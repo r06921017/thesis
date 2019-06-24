@@ -1,4 +1,6 @@
-action: 12
+action: 13
+age: 0
+gender: false
 ip: 192.168.0.137
 location: 7
 name: Charlie
