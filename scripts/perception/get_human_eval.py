@@ -5,6 +5,7 @@ This is for human localization on Pepper with image stitching, ignoring obj_buff
 """
 
 import rospy
+import rospkg
 from darknet_ros_msgs.msg import *
 import cv2
 from sensor_msgs.msg import Image
@@ -16,6 +17,8 @@ from sensor_msgs.msg import CameraInfo
 from geometry_msgs.msg import PoseStamped, Point
 from visualization_msgs.msg import Marker
 from std_msgs.msg import ColorRGBA
+import pandas as pd
+import argparse
 
 
 class VideoFrames:
@@ -70,16 +73,17 @@ def camera2pose(depth, pixel_x, pixel_y, listener, ref_frame, target_frame):
     return obj_target_frame.pose.position.x, obj_target_frame.pose.position.y
 
 
-def draw_map(pose_x, pose_y, class_name, in_temp_map, robot_pose_offset):
+def draw_map(pose_x, pose_y, class_name, in_temp_map, in_robot_pose_offset):
     pose_string = '(' + str(pose_x) + ', ' + str(pose_y) + ')'  # pose_x, pose_y unit:m
     pixel_per_length = 1  # unit:1 cm = 1 pixels
     temp_x = in_temp_map.shape[1] // 2 + int(pose_y * 100) * pixel_per_length
-    temp_y = (in_temp_map.shape[0] - robot_pose_offset) - int(pose_x * 100) * pixel_per_length
+    temp_y = (in_temp_map.shape[0] - in_robot_pose_offset) - int(pose_x * 100) * pixel_per_length
 
     cv2.circle(in_temp_map, (temp_x, temp_y), 3, (255, 0, 0), 2)
 
-    cv2.putText(in_temp_map, class_name, (temp_x + 5, temp_y + 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
-    cv2.putText(in_temp_map, pose_string, (temp_x + 5, temp_y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
+    if not rospy.get_param('/thesis/is_eval', False):
+        cv2.putText(in_temp_map, class_name, (temp_x + 5, temp_y + 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (255, 0, 0), 2)
+        cv2.putText(in_temp_map, pose_string, (temp_x + 5, temp_y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 0, 0), 2)
 
     return
 
@@ -125,7 +129,7 @@ def create_ros_marker(input_obj_array, marker_scale=0.4, red=1.0, green=1.0, blu
 
 
 def bd_callback(data):
-    global obj_pose_array, obj_buffer
+    global obj_pose_array, obj_buffer, temp_map, eval_x, eval_x
 
     # get image with pose time
     t = data.header.stamp
@@ -134,17 +138,6 @@ def bd_callback(data):
     if depth_img is None:
         rospy.logwarn('No received depth images.')
         return
-
-    temp_map_width = 512
-    robot_pose_offset = 10  # pixel, for draw_map method.
-
-    # show object location relative to robot
-    temp_map = np.ones((temp_map_width, temp_map_width, 3), np.uint8) * 255
-
-    # Draw a robot
-    cv2.circle(temp_map, (temp_map_width // 2, temp_map_width - robot_pose_offset), 3, (0, 0, 255), 2)
-    cv2.putText(temp_map, 'robot', (temp_map_width // 2 + 5, temp_map_width - robot_pose_offset),
-                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
 
     obj_list = []
     glob_obj_list = []
@@ -188,6 +181,9 @@ def bd_callback(data):
             # Convert camera data to pose relative to robot depth camera
             obj_x, obj_y = camera2pose(depth_val, obj_pixel_x, obj_pixel_y,
                                        tf_listener, "CameraTop_frame", "CameraTop_frame")
+
+            eval_x.append(obj_x)
+            eval_y.append(obj_y)
 
             temp_obj = ObjPose()  # type: ObjPose
             temp_obj.Class = obj.Class
@@ -256,10 +252,15 @@ if __name__ == '__main__':
     rospy.init_node('get_human', anonymous=True)
     rospy.loginfo('get_human initialization')
 
+    parser = argparse.ArgumentParser(description='output position file')
+    parser.add_argument('--out', type=str, default='position.csv')
+    args = parser.parse_args(rospy.myargv()[1:])
+
     # initialization (global variables)
     tf_listener = tf.TransformListener()
     depth_topic = '/naoqi_driver_node/camera/depth/image_raw'  # for pepper
     camera_info_topic = '/naoqi_driver_node/camera/front/camera_info'  # for pepper
+    pkg_dir = rospkg.RosPack().get_path('thesis')
 
     if not rospy.has_param("human_detected"):
         rospy.set_param("human_detected", False)
@@ -277,21 +278,38 @@ if __name__ == '__main__':
     rospy.loginfo('Wait for depth_topic')
     rospy.wait_for_message(depth_topic, Image, timeout=30)
 
-    # Publisher
+    # Publisher and subscriber
     depth_box_pub = rospy.Publisher("/thesis/depth_box", Image, queue_size=1)
     temp_map_pub = rospy.Publisher("/thesis/robot_human_location", Image, queue_size=1)
     obj_pose_pub = rospy.Publisher("/thesis/human_location", ObjPoseArray, queue_size=10)
     obj_mark_pub = rospy.Publisher("/thesis/human_marker", Marker, queue_size=1)
-
     rospy.Subscriber("/darknet_ros/bounding_boxes", BoundingBoxes, bd_callback, queue_size=1)
 
+    # global parameters to picture all human positions
+    temp_map_width = 512
+    robot_pose_offset = 10  # pixel, for draw_map method.
+    eval_x = list()
+    eval_y = list()
+
+    # show object location relative to robot
+    temp_map = np.ones((temp_map_width, temp_map_width, 3), np.uint8) * 255
+
+    # Draw a robot
+    cv2.circle(temp_map, (temp_map_width // 2, temp_map_width - robot_pose_offset), 3, (0, 0, 255), 2)
+    cv2.putText(temp_map, 'robot', (temp_map_width // 2 + 5, temp_map_width - robot_pose_offset),
+                cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+    # start to run the node
     rate = rospy.Rate(10)  # unit: hz
-
     rospy.loginfo('Start finding human!')
-
     while not rospy.is_shutdown():
         try:
             rate.sleep()
 
         except rospy.ROSInterruptException:
             rospy.loginfo('Shut down get_human ...')
+
+    rospy.loginfo('Save eval positions')
+    pose_df = pd.DataFrame({'x': eval_x, 'y': eval_y})
+    pose_df.to_csv(pkg_dir+'/exp2/'+args.out, index=False, columns=['x', 'y'])
+    rospy.loginfo('Done!')
