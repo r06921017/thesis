@@ -17,27 +17,34 @@ if __name__ == '__main__':
 
     f = plt.figure(num=None, figsize=(14, 9), dpi=80, facecolor='w', edgecolor='k')
     ax = f.add_subplot(111)
-    ax.tick_params(labelright=True)
+    ax.tick_params(labelright=False)
 
-    plt.plot(num, fcfs, linewidth=3.0, color='blue', marker='o', ms=14, label='FCFS', zorder=0)
-    plt.plot(num, rand, linewidth=3.0, color='purple', marker='D', ms=14, label='Random', zorder=1)
-    plt.plot(num, pf, linewidth=3.0, color='green', marker='P', ms=14, label='PF', zorder=2)
-    plt.plot(num, sf, linewidth=3.0, color='orange', marker='X', ms=14, label='SF', zorder=4)
-    plt.plot(num, dp, linewidth=3.0, color='red', marker='s', ms=14, label='Ours', zorder=3)
+    mark_size = 18
+    lw = 3.5
+    num_size = 20
+    label_size = 25
+    title_size = 30
+    legend_size = 20
 
-    plt.yticks(np.arange(0, 1.05, 0.1), fontsize=16)
-    plt.xticks(num, fontsize=16)
-    plt.xlabel('Number of instructions', fontsize=20)
-    plt.ylabel('Time ratio', fontsize=20)
-    plt.title('Time Ratio of Instructions', fontsize=25)
+    plt.plot(num, fcfs, linewidth=3.5, color='blue', marker='o', ms=mark_size, label='FCFS', zorder=0)
+    plt.plot(num, rand, linewidth=3.5, color='purple', marker='D', ms=mark_size, label='Random', zorder=1)
+    plt.plot(num, pf, linewidth=3.5, color='green', marker='P', ms=mark_size, label='PF', zorder=2)
+    plt.plot(num, sf, linewidth=3.5, color='orange', marker='X', ms=mark_size, label='SF', zorder=4)
+    plt.plot(num, dp, linewidth=3.5, color='red', marker='s', ms=mark_size, label='Ours', zorder=3)
+
+    plt.yticks(np.arange(0, 1.05, 0.05), fontsize=num_size)
+    plt.xticks(num, fontsize=num_size)
+    plt.xlabel('Number of instructions', fontsize=label_size)
+    plt.ylabel('Time ratio', fontsize=label_size)
+    plt.title('Time Ratio of Instructions', fontsize=title_size)
     plt.grid(True)
 
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
-    params = {'legend.fontsize': 16,
+    params = {'legend.fontsize': legend_size,
               'legend.handlelength': 2}
     plt.rcParams.update(params)
-    ax.legend(loc='center left', bbox_to_anchor=(1.1, 0.1))
+    ax.legend(loc='center left', bbox_to_anchor=(1.0, 0.1))
 
     plt.show()
