@@ -79,7 +79,7 @@ if __name__ == '__main__':
     rospy.init_node('TfPoseEstimatorROS', anonymous=True, log_level=rospy.INFO)
 
     # parameters
-    image_topic = rospy.get_param('~camera', '/thesis/img_stitching')
+    image_topic = rospy.get_param('/thesis/camera', '/thesis/img_stitching')
     model = rospy.get_param('~model', 'mobilenet_thin')  # cmu
 
     resolution = rospy.get_param('~resolution', '320x240')  # w x h

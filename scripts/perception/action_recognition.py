@@ -155,12 +155,10 @@ def get_action(hand_obj_list, eye_obj_list, hand_eye):
     p_acts = prob_norm(p_acts_hand + p_acts_eye * 1.2 + p_eye_hand * hand_eye)
     act_id = np.argmax(p_acts) if np.max(p_acts) > 0.25 else -1
 
-    # if __debug__:
-    #     action = action_cat[act_id]
-    #     print 'p(act|hand) = ', p_acts_hand
-    #     print 'p(act|eyes) = ', p_acts_eye
-    #     print 'p(action)   = ', p_acts
-    #     print 'action = ', action
+    rospy.logdebug('p(act|hand) = {0}'.format(p_acts_hand))
+    rospy.logdebug('p(act|eyes) = {0}'.format(p_acts_eye))
+    rospy.logdebug('p(action)   = {0}'.format(p_acts))
+    rospy.logdebug('action = {0}'.format(action_cat[act_id]))
 
     return act_id
 
@@ -173,7 +171,7 @@ def person_callback(data):
 
     if rospy.get_param('/thesis/action_on', False):
         try:
-            _img = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching', Image, timeout=10), "bgr8")
+            _img = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message(image_topic, Image, timeout=10), "bgr8")
 
         except rospy.exceptions.ROSException:
             rospy.logerr("Error when fetching img_stitching.")
@@ -207,7 +205,7 @@ def get_action_cat():
     if rospy.has_param('action_cat'):
         return rospy.get_param('action_cat')
     else:
-        h_acts = pd.read_csv(rospkg.RosPack().get_path('thesis') + '/config/hand_actions.csv', sep=',')  # DataFrame
+        h_acts = pd.read_csv(config_dir + 'hand_actions.csv', sep=',')  # DataFrame
         rospy.set_param('action_cat', h_acts.columns.to_list())
         return h_acts.columns.to_list()
 
@@ -217,6 +215,10 @@ if __name__ == '__main__':
     pkg_dir = rospkg.RosPack().get_path('thesis')
     config_dir = pkg_dir + '/config/'
     human_info_dir = rospkg.RosPack().get_path('thesis') + '/human_info/'
+
+    # define ros topic names
+    image_topic = rospy.get_param('/thesis/camera', '/thesis/img_stitching')
+    pose_topic = '/thesis/human_pose'
 
     hand_acts = pd.read_csv(config_dir + 'hand_actions.csv', sep=',')  # DataFrame
     eyes_acts = pd.read_csv(config_dir + 'eyes_actions.csv', sep=',')  # DataFrame
@@ -232,8 +234,8 @@ if __name__ == '__main__':
     cv_bridge = CvBridge()
     human_info = load_human_info(human_info_dir)
 
-    rospy.init_node('action_recognition', log_level=rospy.INFO)
+    rospy.init_node('action_recognition', log_level=rospy.DEBUG)
     rospy.loginfo('action_reg start!')
 
-    rospy.Subscriber('/thesis/human_pose', Persons, person_callback, queue_size=1)
+    rospy.Subscriber(pose_topic, Persons, person_callback, queue_size=1)
     rospy.spin()
