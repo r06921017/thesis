@@ -75,7 +75,8 @@ def camera2pose(depth, pixel_x, pixel_y, listener, ref_frame, target_frame):
 
 def draw_map(pose_x, pose_y, class_name, in_temp_map, in_robot_pose_offset):
     pose_string = '(' + str(pose_x) + ', ' + str(pose_y) + ')'  # pose_x, pose_y unit:m
-    pixel_per_length = 1  # unit:1 cm = 1 pixels
+    print 'pose_y = ', pose_y
+    # rospy.sleep(5)
     temp_x = in_temp_map.shape[1] // 2 + int(pose_y * 100) * pixel_per_length
     temp_y = (in_temp_map.shape[0] - in_robot_pose_offset) - int(pose_x * 100) * pixel_per_length
 
@@ -151,8 +152,8 @@ def bd_callback(data):
             bound_depth_img = np.copy(depth_img[obj.ymin:human_ymax, obj.xmin:obj.xmax])
             bound_depth_img[bound_depth_img > 5000] = 5000  # max range = 5m
 
-            # slide_width = np.min([bound_depth_img.shape[0], bound_depth_img.shape[1]]) // 4  # for object
-            slide_width = 30  # for human detection
+            slide_width = np.min([bound_depth_img.shape[0], bound_depth_img.shape[1]]) // 4  # for object
+            # slide_width = 30  # for human detection
 
             sxmin = bound_depth_img.shape[1] // 2 - slide_width // 2
             sxmax = bound_depth_img.shape[1] // 2 + slide_width // 2
@@ -182,8 +183,15 @@ def bd_callback(data):
             obj_x, obj_y = camera2pose(depth_val, obj_pixel_x, obj_pixel_y,
                                        tf_listener, "CameraTop_frame", "CameraTop_frame")
 
-            eval_x.append(obj_x)
-            eval_y.append(obj_y)
+            # obj_x, obj_y = camera2pose(depth_val, obj_pixel_x, obj_pixel_y,
+            #                            tf_listener, 'CameraTop_frame', 'base_link')
+
+            if len(eval_x) == 0:
+                eval_x.append(obj_x)
+                eval_y.append(obj_y)
+            elif eval_x[-1] != obj_x and eval_y[-1] != obj_y:
+                eval_x.append(obj_x)
+                eval_y.append(obj_y)
 
             temp_obj = ObjPose()  # type: ObjPose
             temp_obj.Class = obj.Class
@@ -191,6 +199,7 @@ def bd_callback(data):
             temp_obj.y = obj_y
 
             if obj_buffer.Class == '' and obj_buffer.x == 0.0 and obj_buffer.y == 0.0:  # if buffer is empty
+                rospy.logwarn('obj buff is empty')
                 obj_buffer = temp_obj
 
             else:
@@ -200,15 +209,15 @@ def bd_callback(data):
                 if perturbation < (0.22 * temp_obj.x + 0.01 * temp_obj.y):  # unit: meter
                     obj_buffer = temp_obj
 
-            draw_map(temp_obj.x, temp_obj.y, temp_obj.Class, temp_map, robot_pose_offset)
-            # draw_map(obj_buffer.x, obj_buffer.y, obj_buffer.Class, temp_map, robot_pose_offset)
+            # draw_map(temp_obj.x, temp_obj.y, temp_obj.Class, temp_map, robot_pose_offset)
+            draw_map(obj_buffer.x, obj_buffer.y, obj_buffer.Class, temp_map, robot_pose_offset)
             obj_list.append(obj_buffer)  # record all the object, not for single human detection
 
             # Convert points to map frame
             glob_obj_pose = ObjPose()
             glob_obj_pose.Class = obj_buffer.Class
             glob_obj_pose.x, glob_obj_pose.y = camera2pose(depth_val, obj_pixel_x, obj_pixel_y,
-                                                           tf_listener, "CameraTop_frame", "map")
+                                                           tf_listener, 'CameraTop_frame', 'map')
 
             glob_obj_list.append(glob_obj_pose)
 
@@ -262,8 +271,8 @@ if __name__ == '__main__':
     camera_info_topic = '/naoqi_driver_node/camera/front/camera_info'  # for pepper
     pkg_dir = rospkg.RosPack().get_path('thesis')
 
-    if not rospy.has_param("human_detected"):
-        rospy.set_param("human_detected", False)
+    if not rospy.has_param('human_detected'):
+        rospy.set_param('human_detected', False)
 
     # Camera info subscribe once
     fx, fy, cx, cy, cam_width, cam_height = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
@@ -274,6 +283,7 @@ if __name__ == '__main__':
     df = VideoFrames(depth_topic)  # get depth image
 
     obj_buffer = ObjPose()  # for single object(human)
+    rospy.loginfo('obj_buff x, y = {0}, {1}'.format(obj_buffer.x, obj_buffer.y))
 
     rospy.loginfo('Wait for depth_topic')
     rospy.wait_for_message(depth_topic, Image, timeout=30)
@@ -288,6 +298,11 @@ if __name__ == '__main__':
     # global parameters to picture all human positions
     temp_map_width = 512
     robot_pose_offset = 10  # pixel, for draw_map method.
+    pixel_per_length = 1  # unit:1 cm = 1 pixels  # 1
+    walk_offset = 150  # cm
+    walk_width = 120  # cm
+    t_offset = 20  # cm
+
     eval_x = list()
     eval_y = list()
 
@@ -298,6 +313,12 @@ if __name__ == '__main__':
     cv2.circle(temp_map, (temp_map_width // 2, temp_map_width - robot_pose_offset), 3, (0, 0, 255), 2)
     cv2.putText(temp_map, 'robot', (temp_map_width // 2 + 5, temp_map_width - robot_pose_offset),
                 cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+
+    # Draw rectangle
+    cv2.rectangle(temp_map,
+                  (temp_map_width//2-walk_width//2+t_offset, temp_map_width-robot_pose_offset-walk_offset-walk_width),
+                  (temp_map_width//2+walk_width//2+t_offset, temp_map_width-robot_pose_offset-walk_offset),
+                  (0, 255, 0), 2)
 
     # start to run the node
     rate = rospy.Rate(10)  # unit: hz
