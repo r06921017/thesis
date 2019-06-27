@@ -264,7 +264,7 @@ if __name__ == '__main__':
     rospy.init_node('action_recognition', log_level=rospy.INFO)
     rospy.loginfo('action_recognition start!')
 
-    rospy.Subscriber(pose_topic, Persons, person_callback, queue_size=1)
+    rospy.Subscriber(pose_topic, Persons, person_callback, queue_size=10)
 
     # for evaluation
     eval_list = list()
@@ -283,6 +283,7 @@ if __name__ == '__main__':
         else:
             csv_name = 'action.csv'
 
-        out_df = pd.DataFrame({'action': eval_list, 'frame': frame_list})
-        out_df.to_csv('/home/robot/catkin_ws/src/thesis/exp2/'+csv_name, index=False, columns=['frame', 'action'])
-        rospy.loginfo('Done!')
+        if len(eval_list) > 0:
+            out_df = pd.DataFrame({'action': eval_list, 'frame': frame_list})
+            out_df.to_csv('/home/robot/catkin_ws/src/thesis/exp2/'+csv_name, index=False, columns=['frame', 'action'])
+            rospy.loginfo('Done!')

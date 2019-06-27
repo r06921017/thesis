@@ -14,11 +14,11 @@ import argparse
 
 
 class ImageConverter:
-    def __init__(self, video_name='S003C003P007R001A001_rgb.avi'):
+    def __init__(self):
         self.video_dir = '/home/robot/pepper_data/action_videos/'
-        self.video_name = video_name
+        self.video_name = args.video_name
         self.bag_dir = '/home/robot/pepper_data/actions/'
-        self.save_dir = '/home/robot/pepper_data/action_images/'
+        self.image_dir = '/home/robot/pepper_data/action_images/'
         self.image_pub = rospy.Publisher('/thesis/img_stitching', Image, queue_size=10)
         self.bridge = CvBridge()
         self.now = rospy.get_rostime()
@@ -41,11 +41,11 @@ class ImageConverter:
             pass
         return
 
-    def play_video(self, video_name=None, save_dir=None, save_flag=False):
+    def play_video(self, video_name=None, image_dir=None, save_flag=False):
         if video_name is not None:
             self.video_name = video_name
-        if save_dir is not None:
-            self.save_dir = save_dir
+        if image_dir is not None:
+            self.image_dir = image_dir
 
         cap = cv2.VideoCapture(self.video_dir+self.video_name)
         rospy.set_param('/thesis/video_name', self.video_name)
@@ -63,10 +63,10 @@ class ImageConverter:
                 # crop_img = frame[:, fw//2-(fw//8):fw//2+(fw//8), :]
 
                 if save_flag:
-                    if video_name.split('.')[0] not in os.listdir(self.save_dir):
-                        os.mkdir(self.save_dir + video_name.split('.')[0])
+                    if video_name.split('.')[0] not in os.listdir(self.image_dir):
+                        os.mkdir(self.image_dir + self.video_name.split('.')[0])
 
-                    img_name = (self.save_dir + video_name.split('.')[0] + '/' + '{0:03d}.png').format(i)
+                    img_name = (self.image_dir + self.video_name.split('.')[0] + '/' + '{0:03d}.png').format(i)
                     print img_name
                     cv2.imwrite(img_name, crop_img)
                 self.pub_imgmsg(crop_img)
@@ -84,6 +84,11 @@ class ImageConverter:
         rospy.loginfo('Done!')
         return
 
+    def play_videos_in_dir(self, save_flag):
+        for video in os.listdir(self.video_dir):
+            if video.split('.')[0] not in self.image_dir:
+                self.play_video(video_name=video, save_flag=save_flag)
+
     def bag_to_video(self, bag_name=None):
         if bag_name is not None:
             c_str = 'gnome-terminal -x sh -c "roslaunch thesis rosbag2video.launch bag_name:=' + bag_name + '"'
@@ -92,23 +97,24 @@ class ImageConverter:
             for bag_name in os.listdir(self.bag_dir):
                 if bag_name.endswith('.bag'):
                     bag_name = bag_name.split('.')[0]
-                    print bag_name
-                    c_str = 'roslaunch thesis rosbag2video.launch bag_name:=' + bag_name
-                    subprocess.call(c_str, shell=True)
+                    print 'bag_name: ', bag_name
+                    if (bag_name + '.avi') not in os.listdir(self.video_dir):
+                        c_str = 'roslaunch thesis rosbag2video.launch bag_name:=' + bag_name
+                        subprocess.call(c_str, shell=True)
                     rospy.sleep(0.5)
         return
 
     def play_img(self):
         rospy.set_param('/thesis/video_name', self.video_name)
 
-        rospy.loginfo('Start playing images!')
-        rospy.logdebug('{0}'.format(sorted(os.listdir(self.save_dir+self.video_name.split('.')[0]))))
+        rospy.loginfo('Start playing images of {0}!'.format(self.video_name.split('.')[0]))
+        rospy.logdebug('{0}'.format(sorted(os.listdir(self.image_dir+self.video_name.split('.')[0]))))
 
-        for img in sorted(os.listdir(self.save_dir+self.video_name.split('.')[0])):
-            print 'frame: {0}'.format(img.split('.')[0])
+        for img in sorted(os.listdir(self.image_dir+self.video_name.split('.')[0])):
+            print '{0}: {1}'.format(self.video_name.split('.')[0], img.split('.')[0])
             rospy.set_param('/thesis/img_frame', img.split('.')[0])
             rospy.sleep(0.01)
-            self.pub_imgmsg(cv2.imread(self.save_dir + self.video_name.split('.')[0] + '/' + img))
+            self.pub_imgmsg(cv2.imread(self.image_dir + self.video_name.split('.')[0] + '/' + img))
             rospy.sleep(1.0 / self.fps)
         rospy.loginfo('Done!')
         return
@@ -116,13 +122,30 @@ class ImageConverter:
 
 if __name__ == '__main__':
     # add arg parser
-    parser = argparse.ArgumentParser(description='Enter video name')
-    parser.add_argument('--video_name', type=str, default='S000P000A006.avi')
+    parser = argparse.ArgumentParser(description='Enter video name and function')
+    parser.add_argument('--video_name', type=str, default=None)
+    parser.add_argument('--function', type=int, required=True,
+                        help='0: bag to video, 1: play video without saving, '
+                             '2: play video and save into images, 3: play images')
+
     args = parser.parse_args(rospy.myargv()[1:])
 
     rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
-    ic = ImageConverter(video_name=args.video_name)
-    # ic.bag_to_video()
+    ic = ImageConverter()
 
-    image_dir = '/home/robot/pepper_data/action_images/' + args.video_name.split('.')[0]
-    ic.play_img()
+    if args.function == 0:
+        ic.bag_to_video()
+
+    elif args.function == 1:
+        if args.video_name is not None:
+            ic.play_video()
+
+    elif args.function == 2:
+        if args.video_name is not None:
+            ic.play_video(save_flag=True)
+
+    elif args.function == 3:
+        ic.play_img()
+
+    elif args.function == 4:
+        ic.play_videos_in_dir(save_flag=True)
