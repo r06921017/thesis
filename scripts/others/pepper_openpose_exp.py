@@ -108,6 +108,6 @@ if __name__ == '__main__':
     pub_pose = rospy.Publisher('/thesis/human_pose', Persons, queue_size=1)
     pub_img = rospy.Publisher('/thesis/pose_visualization', Image, queue_size=1)
 
-    rospy.loginfo('start+')
+    rospy.loginfo('pepper_openpose start+')
     rospy.spin()
-    rospy.loginfo('finished')
+    rospy.loginfo('pepper_openpose finished...')

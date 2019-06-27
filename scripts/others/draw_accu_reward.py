@@ -49,13 +49,20 @@ if __name__ == '__main__':
     ax = f.add_subplot(111)
     ax.tick_params(labelright=True)
 
-    plt.plot(opt_time, opt_reward, linewidth=3.0, color='deeppink', marker='*', ms=15, label='Opt', zorder=0)
-    plt.plot(opt_real_time, opt_real_reward, linewidth=3.0, color='grey', marker='v', ms=14, label='Opt w/m', zorder=1)
-    plt.plot(fcfs_time, fcfs_reward, linewidth=3.0, color='blue', marker='o', ms=14, label='FCFS', zorder=2)
-    plt.plot(rand_time, rand_reward, linewidth=3.0, color='purple', marker='D', ms=14, label='Random', zorder=3)
-    plt.plot(pf_time, pf_reward, linewidth=3.0, color='green', marker='P', ms=14, label='PF', zorder=4)
-    plt.plot(sf_time, sf_reward, linewidth=3.0, color='orange', marker='X', ms=14, label='SF', zorder=6)
-    plt.plot(dp_time, dp_reward, linewidth=3.0, color='red', marker='s', ms=14, label='Ours', zorder=5)
+    mark_size = 18
+    lw = 3.5
+    num_size = 20
+    label_size = 25
+    title_size = 30
+    legend_size = 20
+
+    plt.plot(opt_time, opt_reward, linewidth=lw, color='deeppink', marker='*', ms=15, label='Opt', zorder=0)
+    plt.plot(opt_real_time, opt_real_reward, linewidth=lw, color='grey', marker='v', ms=14, label='Opt w/m', zorder=1)
+    plt.plot(fcfs_time, fcfs_reward, linewidth=lw, color='blue', marker='o', ms=14, label='FCFS', zorder=2)
+    plt.plot(rand_time, rand_reward, linewidth=lw, color='purple', marker='D', ms=14, label='Random', zorder=3)
+    plt.plot(pf_time, pf_reward, linewidth=lw, color='green', marker='P', ms=14, label='PF', zorder=4)
+    plt.plot(sf_time, sf_reward, linewidth=lw, color='orange', marker='X', ms=14, label='SF', zorder=6)
+    plt.plot(dp_time, dp_reward, linewidth=lw, color='red', marker='s', ms=14, label='Ours', zorder=5)
 
     max_step = np.ceil(np.max([fcfs_time[-1], opt_time[-1], opt_real_time[-1]])).astype(int)
     step_gap = 10
@@ -63,17 +70,17 @@ if __name__ == '__main__':
 
     reward_bound = np.ceil(opt_reward[-1])
     reward_step = 0.5
-    plt.yticks(np.arange(0, reward_bound+reward_step, reward_step), fontsize=16)
-    plt.xticks(num, fontsize=16)
-    plt.xlabel('Time step', fontsize=20)
-    plt.ylabel('Reward value', fontsize=20)
-    plt.title('Accumulative Reward', fontsize=30)
+    plt.yticks(np.arange(0, reward_bound+reward_step, reward_step), fontsize=num_size)
+    plt.xticks(num, fontsize=num_size)
+    plt.xlabel('Time step', fontsize=label_size)
+    plt.ylabel('Reward value', fontsize=label_size)
+    plt.title('Accumulative Reward', fontsize=title_size)
     plt.grid(True)
 
     box = ax.get_position()
     ax.set_position([box.x0, box.y0, box.width * 0.8, box.height])
 
-    params = {'legend.fontsize': 16,
+    params = {'legend.fontsize': legend_size,
               'legend.handlelength': 2}
     plt.rcParams.update(params)
     ax.legend(loc='center left', bbox_to_anchor=(1.1, 0.1))

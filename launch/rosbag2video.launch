@@ -1,0 +1,11 @@
+<launch>
+    <arg name="bag_name"   default="S006P001A001"/>
+    <arg name="bag_dir" default="/home/robot/pepper_data/actions/"/>
+    <arg name="save_dir" default="/home/robot/pepper_data/action_videos/"/>
+    <node pkg="rosbag" type="play" name="rosbag" required="true" args="$(arg bag_dir)$(arg bag_name).bag"/>
+    <node name="record" pkg="image_view" type="video_recorder" respawn="false" required="true" output="screen" cwd="ROS_HOME">
+        <remap from="image" to="/thesis/img_stitching"/>
+        <param name="~fps" type="int" value="4"/>
+        <param name="~filename" type="string" value="$(arg save_dir)$(arg bag_name).avi"/>
+    </node>
+</launch>

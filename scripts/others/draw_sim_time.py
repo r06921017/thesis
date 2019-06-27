@@ -27,11 +27,11 @@ if __name__ == '__main__':
     title_size = 30
     legend_size = 20
 
-    plt.plot(num, fcfs, linewidth=3.0, color='blue', marker='o', ms=mark_size, label='FCFS', zorder=0)
-    plt.plot(num, rand, linewidth=3.0, color='purple', marker='D', ms=mark_size, label='Random', zorder=1)
-    plt.plot(num, pf, linewidth=3.0, color='green', marker='P', ms=mark_size, label='PF', zorder=2)
-    plt.plot(num, sf, linewidth=3.0, color='orange', marker='X', ms=mark_size, label='SF', zorder=4)
-    plt.plot(num, dp, linewidth=3.0, color='red', marker='s', ms=mark_size, label='Ours', zorder=3)
+    plt.plot(num, fcfs, linewidth=lw, color='blue', marker='o', ms=mark_size, label='FCFS', zorder=0)
+    plt.plot(num, rand, linewidth=lw, color='purple', marker='D', ms=mark_size, label='Random', zorder=1)
+    plt.plot(num, pf, linewidth=lw, color='green', marker='P', ms=mark_size, label='PF', zorder=2)
+    plt.plot(num, sf, linewidth=lw, color='orange', marker='X', ms=mark_size, label='SF', zorder=4)
+    plt.plot(num, dp, linewidth=lw, color='red', marker='s', ms=mark_size, label='Ours', zorder=3)
 
     plt.yticks(np.arange(0, 7200, 500), fontsize=num_size)
     plt.xticks(num, fontsize=num_size)

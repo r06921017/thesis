@@ -22,7 +22,7 @@ if __name__ == '__main__':
     # _exp_dir_list = os.listdir(_exp2)
     # print _exp_dir_list
 
-    _exp_dir_list = ['instr_10_1002', 'instr_10_1005', 'instr_10_1004', 'instr_10_1001', 'instr_10_1111',
+    _exp_dir_list = ['instr_10_1002', 'instr_10_1005', 'instr_10_1004', 'instr_10_1001', 'instr_10_1111_backup',
                      'instr_10_1006', 'instr_10_1007', 'instr_10_1009']
 
     planners = ['opt', 'fcfs', 'rand', 'pf', 'sf', 'dp']

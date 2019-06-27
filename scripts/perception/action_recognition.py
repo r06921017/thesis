@@ -13,7 +13,6 @@ from tfpose_ros.msg import Persons
 from darknet_ros_msgs.msg import *
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
-from std_msgs.msg import Int8
 
 from human_id import load_human_info, get_people_joints, identify_single_human, store_human_info
 
@@ -208,9 +207,9 @@ def person_callback(data):
 
             # for experiments
             if is_eval:
-                action_msg = Int8(data=action_id)
-                eval_pub.publish(action_msg)
-
+                global eval_list, frame_list
+                eval_list.append(action_id)
+                frame_list.append(rospy.get_param('/thesis/pose_frame', -1))
     return
 
 
@@ -243,8 +242,6 @@ if __name__ == '__main__':
     config_dir = pkg_dir + '/config/'
     human_info_dir = rospkg.RosPack().get_path('thesis') + '/human_info/'
 
-    action_results = list()
-
     # define ros topic names
     image_topic = rospy.get_param('/thesis/camera', '/thesis/img_stitching')
     pose_topic = '/thesis/human_pose'
@@ -265,11 +262,27 @@ if __name__ == '__main__':
     human_info = load_human_info(human_info_dir)
 
     rospy.init_node('action_recognition', log_level=rospy.INFO)
-    rospy.loginfo('action_reg start!')
+    rospy.loginfo('action_recognition start!')
 
     rospy.Subscriber(pose_topic, Persons, person_callback, queue_size=1)
 
-    if is_eval:
-        eval_pub = rospy.Publisher(out_topic, Int8, queue_size=1)
+    # for evaluation
+    eval_list = list()
+    frame_list = list()
 
     rospy.spin()
+
+    rospy.loginfo('action_recognition finish!')
+
+    if is_eval:
+        rospy.loginfo('Saving action results ...')
+        rospy.loginfo('action length: {0}'.format(len(eval_list)))
+        # Define csv file
+        if rospy.has_param('/thesis/video_name'):
+            csv_name = rospy.get_param('/thesis/video_name').split('.')[0] + '_action.csv'
+        else:
+            csv_name = 'action.csv'
+
+        out_df = pd.DataFrame({'action': eval_list, 'frame': frame_list})
+        out_df.to_csv('/home/robot/catkin_ws/src/thesis/exp2/'+csv_name, index=False, columns=['frame', 'action'])
+        rospy.loginfo('Done!')

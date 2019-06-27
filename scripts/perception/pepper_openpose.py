@@ -69,6 +69,7 @@ def callback_image(data):
         msg.image_h = data.height
         msg.header = data.header
 
+        rospy.set_param('/thesis/pose_frame', rospy.get_param('/thesis/img_frame', -1))  # for evaluation
         pub_pose.publish(msg)
 
     return
@@ -108,6 +109,6 @@ if __name__ == '__main__':
     pub_pose = rospy.Publisher('/thesis/human_pose', Persons, queue_size=1)
     pub_img = rospy.Publisher('/thesis/pose_visualization', Image, queue_size=1)
 
-    rospy.loginfo('start+')
+    rospy.loginfo('pepper_openpose start+')
     rospy.spin()
     rospy.loginfo('finished')

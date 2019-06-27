@@ -1,4 +1,6 @@
-action: 7
+action: 1
+age: 0
+gender: false
 ip: 192.168.0.123
 location: 0
 name: Bob
