@@ -16,6 +16,7 @@ import argparse
 class ImageConverter:
     def __init__(self):
         self.video_dir = '/home/robot/pepper_data/action_videos/'
+        # self.video_dir = '/home/robot/NTU_RGBD/nturgb+d_rgb_4/'
         self.video_name = args.video_name
         self.bag_dir = '/home/robot/pepper_data/actions/'
         self.image_dir = '/home/robot/pepper_data/action_images/'
@@ -59,11 +60,11 @@ class ImageConverter:
                 (fh, fw, _) = frame.shape
 
                 crop_img = frame
-                # crop_img = frame[fh//2-(fw//4):fw//2+(fh//4), fw//2-(fw//8):fw//2+(fw//8), :]
-                # crop_img = frame[:, fw//2-(fw//8):fw//2+(fw//8), :]
+                # crop_img = frame[fh//2-(fw//4):fw//2+(fh//4), fw//2-(fw//6):fw//2+(fw//8), :]
+                # crop_img = frame[fh//2-(fw//16):, fw//2-(fw//20):fw//2+(fw//4), :]
 
                 if save_flag:
-                    if video_name.split('.')[0] not in os.listdir(self.image_dir):
+                    if self.video_name.split('.')[0] not in os.listdir(self.image_dir):
                         os.mkdir(self.image_dir + self.video_name.split('.')[0])
 
                     img_name = (self.image_dir + self.video_name.split('.')[0] + '/' + '{0:03d}.png').format(i)
@@ -85,8 +86,8 @@ class ImageConverter:
         return
 
     def play_videos_in_dir(self, save_flag):
-        for video in os.listdir(self.video_dir):
-            if video.split('.')[0] not in self.image_dir:
+        for video in sorted(os.listdir(self.video_dir)):
+            if video.split('.')[0] not in os.listdir(self.image_dir):
                 self.play_video(video_name=video, save_flag=save_flag)
 
     def bag_to_video(self, bag_name=None):
@@ -94,7 +95,7 @@ class ImageConverter:
             c_str = 'gnome-terminal -x sh -c "roslaunch thesis rosbag2video.launch bag_name:=' + bag_name + '"'
             subprocess.call(c_str, shell=True)
         else:
-            for bag_name in os.listdir(self.bag_dir):
+            for bag_name in sorted(os.listdir(self.bag_dir)):
                 if bag_name.endswith('.bag'):
                     bag_name = bag_name.split('.')[0]
                     print 'bag_name: ', bag_name
@@ -145,7 +146,9 @@ if __name__ == '__main__':
             ic.play_video(save_flag=True)
 
     elif args.function == 3:
-        ic.play_img()
+        ic.play_videos_in_dir(save_flag=True)
 
     elif args.function == 4:
-        ic.play_videos_in_dir(save_flag=True)
+        ic.play_img()
+
+

@@ -13,6 +13,7 @@ from tfpose_ros.msg import Persons
 from darknet_ros_msgs.msg import *
 from cv_bridge import CvBridge
 from sensor_msgs.msg import Image
+import os
 
 from human_id import load_human_info, get_people_joints, identify_single_human, store_human_info
 
@@ -96,6 +97,9 @@ def hand_eye_obj(joints, face_range=1, angle_range=40, obj_eye_range=60):  # pix
             # check if human skeleton is in current bounding box
             if obj.Class == 'person' and isin_bbox(joints[0], obj.xmin, obj.xmax, obj.ymin, obj.ymax):
                 continue
+
+            elif obj.Class == 'bed':
+                pose_range = 100
 
             # elif obj.Class == 'book':  # may be 'else' in the future
             x_mean = (obj.xmin + obj.xmax) / 2.0
@@ -241,6 +245,7 @@ if __name__ == '__main__':
     pkg_dir = rospkg.RosPack().get_path('thesis')
     config_dir = pkg_dir + '/config/'
     human_info_dir = rospkg.RosPack().get_path('thesis') + '/human_info/'
+    pred_dir = '/home/robot/pepper_data/result/pred/'
 
     # define ros topic names
     image_topic = rospy.get_param('/thesis/camera', '/thesis/img_stitching')
@@ -284,6 +289,8 @@ if __name__ == '__main__':
             csv_name = 'action.csv'
 
         if len(eval_list) > 0:
-            out_df = pd.DataFrame({'action': eval_list, 'frame': frame_list})
-            out_df.to_csv('/home/robot/catkin_ws/src/thesis/exp2/'+csv_name, index=False, columns=['frame', 'action'])
-            rospy.loginfo('Done!')
+            if csv_name != 'action.csv' and csv_name not in os.listdir(pred_dir):
+                out_df = pd.DataFrame({'action': eval_list, 'frame': frame_list})
+                out_df.to_csv(pred_dir + csv_name, index=False, columns=['frame', 'action'])
+                rospy.loginfo('Done!')
+                rospy.sleep(3)
