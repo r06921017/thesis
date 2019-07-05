@@ -111,6 +111,7 @@ def color_dist(c1, c2):
             d_b = c1[i][0] - c2[i][0]
             c_dis[i] = np.sqrt((512.+r_mean)*d_r*d_r/256. + 4.*d_g*d_g + (767.-r_mean)*d_b*d_b/256.)
 
+    rospy.logdebug('color_dis: {0}'.format(np.mean(c_dis)))
     # if __debug__:
     #     print 'color distance = ', c_dis
 
@@ -146,13 +147,14 @@ def identify_human(h_info, j_features, person_list):
     return
 
 
-def identify_single_human(img, joints, h_info, j_features):
+def identify_single_human(img, joints, h_info, j_features, color_th=200.):
     """
     Check matching in the human dataset
     :param img: input images
     :param joints: human joints from openpose
     :param h_info: human in the dataset
     :param j_features: the joints for storing
+    :param color_th: threshold of similarity
     :return: Human data structure or None
     """
     if h_info is None:
@@ -166,8 +168,9 @@ def identify_single_human(img, joints, h_info, j_features):
 
     for i, human in enumerate(h_info):
         temp_sim[i] = color_dist(colors, human.shirt_color)
+        rospy.loginfo('{0} dis: {1}'.format(human.name, temp_sim[i]))
 
-    human_result = h_info[np.argmin(temp_sim)] if np.min(temp_sim) < 150. else None
+    human_result = h_info[np.argmin(temp_sim)] if np.min(temp_sim) < color_th else None
 
     if human_result is None:
         rospy.logwarn("New to this person.")
@@ -225,6 +228,7 @@ def show_color(colors):
 
     cv2.imshow('vis_color', vis_color)
     cv2.waitKey(1000*t)
+    cv2.imwrite('/home/robot/pepper_data/result/id_color/P004.png', vis_color)
 
     return
 
@@ -318,6 +322,49 @@ def greeting_cb():
     return
 
 
+def greeting_eval():
+    try:
+        img_stitch = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching', Image, timeout=10), "bgr8")
+        human_pose = rospy.wait_for_message('/thesis/human_pose', Persons, timeout=10)
+
+    except rospy.exceptions.ROSException:
+        return
+
+    max_dis = 0
+    max_joints = np.ones((part_num, 2), dtype=np.int) * -1
+    for idx, person in enumerate(human_pose.persons):
+        joints = np.ones((part_num, 2), dtype=np.int) * -1
+        for i in range(len(human_pose.persons[idx].body_part)):
+            part = human_pose.persons[idx].body_part[i]
+            # Transform the joint points back to the position on the image
+            joints[part.part_id, 0] = part.x * human_pose.image_w
+            joints[part.part_id, 1] = part.y * human_pose.image_h
+
+        # Pick person with longest distance of joint0 and joint1
+        if np.all(joints[2] > 0) and np.all(joints[5] > 0):  # person has nose and one ear
+            if norm(joints[2] - joints[5]) > max_dis:
+                max_dis = norm(joints[2] - joints[5])
+                max_joints = joints
+
+    if np.all(max_joints == -1):
+        print 'no human in the front.'
+
+    else:
+        # Show picked joint
+        colors = get_joint_color(img_stitch, max_joints, joints_features)
+        show_color(colors)
+
+        # Create Human message and store in yaml format
+        name = 'Bob'
+        human = Human(name=name, ip='192.168.50.888', gender=1, age=24,
+                      shirt_color=colors, location=7, action=get_action_len())
+        store_human_info(human)
+        update_human_info_dict(human)
+
+        respond = 'I got it, nice to meet you ' + name
+        rospy.loginfo(respond)
+
+
 def store_human_info(in_human):
     human_info_dir = rospkg.RosPack().get_path('thesis') + '/human_info/'
     temp_human = Human(name=in_human.name,
@@ -382,12 +429,13 @@ def load_human_info(human_info_dir):
             print 'No human in robot memory.'
         else:
             for f in yaml_list:
-                temp = yaml.load(open(human_info_dir + f))
-                temp_shirt_color = np.array(temp['shirt_color'])
-                human_msg = message_converter.convert_dictionary_to_ros_message('thesis/Human', temp)
-                human_msg.shirt_color = temp_shirt_color
+                if f.endswith('.yaml'):
+                    temp = yaml.load(open(human_info_dir + f))
+                    temp_shirt_color = np.array(temp['shirt_color'])
+                    human_msg = message_converter.convert_dictionary_to_ros_message('thesis/Human', temp)
+                    human_msg.shirt_color = temp_shirt_color
 
-                h_list.append(human_msg)
+                    h_list.append(human_msg)
 
             with open(human_info_dir+'human_info.pkl', 'wb') as fin:
                 pickle.dump(h_list, fin)
@@ -427,31 +475,37 @@ if __name__ == '__main__':
     joints_features = [1, 2, 5]
     cv_bridge = CvBridge()
 
-    # Naoqi setting
-    if rospy.has_param("Pepper_ip"):
-        pepper_ip = rospy.get_param("Pepper_ip")
+    is_eval = True
+    if is_eval:
+        rospy.loginfo('Evaluation ...')
+        greeting_eval()
+
     else:
-        print 'Pepper_ip is not given'
-        pepper_ip = '192.168.0.184'
-    print 'Pepper_ip = ', pepper_ip
+        # Naoqi setting
+        if rospy.has_param("Pepper_ip"):
+            pepper_ip = rospy.get_param("Pepper_ip")
+        else:
+            print 'Pepper_ip is not given'
+            pepper_ip = '192.168.0.184'
+        print 'Pepper_ip = ', pepper_ip
 
-    session = qi.Session()
+        session = qi.Session()
 
-    try:
-        session.connect("tcp://" + pepper_ip + ":" + str(9559))
-    except RuntimeError:
-        print("tcp://" + pepper_ip + "\"on port" + str(9559) + ".")
-        print("Please check your script arguments. Run with -h option for help.")
-        sys.exit(1)
+        try:
+            session.connect("tcp://" + pepper_ip + ":" + str(9559))
+        except RuntimeError:
+            print("tcp://" + pepper_ip + "\"on port" + str(9559) + ".")
+            print("Please check your script arguments. Run with -h option for help.")
+            sys.exit(1)
 
-    tts_service = session.service('ALTextToSpeech')
-    tts_service.setLanguage('English')
-    as_service = session.service("ALAnimatedSpeech")
-    # End Naoqi setting
+        tts_service = session.service('ALTextToSpeech')
+        tts_service.setLanguage('English')
+        as_service = session.service("ALAnimatedSpeech")
+        # End Naoqi setting
 
-    rospy.loginfo('human_id start!')
+        rospy.loginfo('human_id start!')
 
-    greet_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
-    print greet_msg
-    if greet_msg.texts[0] == 'hello' or 'halo':
-        greeting_cb()
+        greet_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
+        print greet_msg
+        if greet_msg.texts[0] == 'hello' or 'halo':
+            greeting_cb()

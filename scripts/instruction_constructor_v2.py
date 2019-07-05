@@ -75,7 +75,8 @@ class InstructionConstructor:
         self.task_duration = range(1, 10)  # 1~9
 
         # scenario modeling
-        self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 5, 5: 8}  # {task_priority (emotion: 2, 3, 4): gamma}
+        # self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 5, 5: 8}  # {task_priority (emotion: 2, 3, 4): gamma}
+        self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5}  # {task_priority (emotion: 2, 3, 4): gamma}
         self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}  # {task_priority (emotion: 2, 3, 4): beta}
         self.task_priority = sorted(self.gamma_dict.keys())
         self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 5, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}  # {function: time(sec)}

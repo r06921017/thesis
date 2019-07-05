@@ -52,7 +52,7 @@ Visualization Manager:
       Reference Frame: <Fixed Frame>
       Value: true
     - Class: rviz/Image
-      Enabled: true
+      Enabled: false
       Image Topic: /darknet_ros/detection_image
       Max Value: 1
       Median window: 5
@@ -62,7 +62,7 @@ Visualization Manager:
       Queue Size: 2
       Transport Hint: raw
       Unreliable: false
-      Value: true
+      Value: false
     - Class: rviz/Image
       Enabled: true
       Image Topic: /thesis/pose_visualization
@@ -124,8 +124,8 @@ Visualization Manager:
       Queue Size: 100
       Value: true
     - Class: rviz/Image
-      Enabled: false
-      Image Topic: /thesis/robot_human_location
+      Enabled: true
+      Image Topic: /darknet_ros/detection_image
       Max Value: 1
       Median window: 5
       Min Value: 0
@@ -134,7 +134,7 @@ Visualization Manager:
       Queue Size: 2
       Transport Hint: raw
       Unreliable: false
-      Value: false
+      Value: true
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48

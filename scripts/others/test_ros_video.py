@@ -106,6 +106,10 @@ class ImageConverter:
         return
 
     def play_img(self):
+        if self.video_name is None:
+            rospy.logwarn('No video name to play')
+            return
+
         rospy.set_param('/thesis/video_name', self.video_name)
 
         rospy.loginfo('Start playing images of {0}!'.format(self.video_name.split('.')[0]))
