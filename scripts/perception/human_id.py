@@ -167,6 +167,8 @@ def identify_single_human(img, joints, h_info, j_features, color_th=200.):
     temp_sim = np.zeros(len(h_info))
 
     for i, human in enumerate(h_info):
+        print 'color: ', colors
+        print human.name, human.shirt_color
         temp_sim[i] = color_dist(colors, human.shirt_color)
         rospy.loginfo('{0} dis: {1}'.format(human.name, temp_sim[i]))
 

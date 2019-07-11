@@ -143,6 +143,7 @@ def get_action(hand_obj_list, eye_obj_list, hand_eye):
     """
     whand = 1.0
     weye = 1.2
+    whe = 0.0  # 0
     p_acts_hand = np.zeros(action_num, np.float)  # shape = (action_num,)
     p_acts_eye = np.zeros(action_num, np.float)  # shape = (action_num,)
 
@@ -163,8 +164,9 @@ def get_action(hand_obj_list, eye_obj_list, hand_eye):
     p_acts_hand = prob_norm(p_acts_hand)  # normalize the probability
     p_acts_eye = prob_norm(p_acts_eye)  # normalize the probability
 
-    p_acts = prob_norm(p_acts_hand * whand + p_acts_eye * weye + p_eye_hand * hand_eye)
-    act_id = np.argmax(p_acts) if np.max(p_acts) > 0.25 else -1
+    p_acts = prob_norm(p_acts_hand * whand + p_acts_eye * weye + p_eye_hand * hand_eye * whe)
+    # p_acts = p_acts_hand * whand + p_acts_eye * weye + p_eye_hand * hand_eye * whe
+    act_id = np.argmax(p_acts) if np.max(p_acts) > 0.33 else -1
 
     rospy.loginfo('p(act|hand) = {0}'.format(p_acts_hand))
     rospy.loginfo('p(act|eyes) = {0}'.format(p_acts_eye))
@@ -290,6 +292,7 @@ if __name__ == '__main__':
 
         if len(eval_list) > 0:
             if csv_name != 'action.csv' and csv_name not in os.listdir(pred_dir):
+                rospy.loginfo('Save to {0}'.format(csv_name))
                 out_df = pd.DataFrame({'action': eval_list, 'frame': frame_list})
                 out_df.to_csv(pred_dir + csv_name, index=False, columns=['frame', 'action'])
                 rospy.loginfo('Done!')
