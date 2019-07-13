@@ -99,7 +99,7 @@ class TaskMotionPlannerFCFS:
         :return: next_neighbor, type=list()
         """
 
-        rospy.logdebug('move_adjacency_node!!!!')
+        rospy.logdebug('move_adjacency_node, in_node: {0}'.format(in_node))
         # rospy.loginfo('cur_neighbor = {0}'.format(self.cur_neighbor))
 
         if in_node is None:
@@ -113,12 +113,12 @@ class TaskMotionPlannerFCFS:
         rospy.logdebug('dest_neighbor_node = {0}'.format(dest_neighbor_node))
         rospy.logdebug('_neighbor_nodes = {0}'.format(_neighbor_nodes))
 
-        if dest_neighbor_node == self.cur_node:
-            rospy.loginfo('dest_node is the same as current node.')
-            return self.cur_neighbor
+        if dest_neighbor_node == in_node:
+            rospy.loginfo('dest_node is the same as in_node {0}'.format(in_node))
+            return _temp_neighbor
 
         elif dest_neighbor_node not in _neighbor_nodes:
-            rospy.logerr('Invalid destination for planning.')
+            rospy.logerr('Error in task_motion_planner_fcfs.py: Invalid destination for planning.')
             exit(1)
 
         # update neighbor after moving

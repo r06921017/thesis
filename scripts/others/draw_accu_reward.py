@@ -18,31 +18,31 @@ if __name__ == '__main__':
 
     _exp_dir = rospkg.RosPack().get_path('thesis') + '/exp2/instr_' + str(args.max_num) + '_' + str(args.seed) + '/'
     temp_df = pd.read_csv(_exp_dir + 'task_motion_planner_fcfs_sim_reward.csv')
-    fcfs_time = temp_df['time'].tolist()
+    fcfs_time = (2*temp_df['time']).tolist()
     fcfs_reward = temp_df['reward'].tolist()
 
     temp_df = pd.read_csv(_exp_dir + 'task_motion_planner_rand_sim_reward.csv')
-    rand_time = temp_df['time'].tolist()
+    rand_time = (2*temp_df['time']).tolist()
     rand_reward = temp_df['reward'].tolist()
 
     temp_df = pd.read_csv(_exp_dir + 'task_motion_planner_pf_sim_reward.csv')
-    pf_time = temp_df['time'].tolist()
+    pf_time = (2*temp_df['time']).tolist()
     pf_reward = temp_df['reward'].tolist()
 
     temp_df = pd.read_csv(_exp_dir + 'task_motion_planner_sf_sim_reward.csv')
-    sf_time = temp_df['time'].tolist()
+    sf_time = (2*temp_df['time']).tolist()
     sf_reward = temp_df['reward'].tolist()
 
     temp_df = pd.read_csv(_exp_dir + 'task_motion_planner_dp_sim_reward.csv')
-    dp_time = temp_df['time'].tolist()
+    dp_time = (2*temp_df['time']).tolist()
     dp_reward = temp_df['reward'].tolist()
 
     temp_df = pd.read_csv(_exp_dir + 'opt_reward.csv')
-    opt_time = temp_df['time'].tolist()
+    opt_time = (2*temp_df['time']).tolist()
     opt_reward = temp_df['reward'].tolist()
 
     temp_df = pd.read_csv(_exp_dir + 'task_motion_planner_opt_sim_reward.csv')
-    opt_real_time = temp_df['time'].tolist()
+    opt_real_time = (2*temp_df['time']).tolist()
     opt_real_reward = temp_df['reward'].tolist()
 
     f = plt.figure(num=None, figsize=(14, 9), dpi=80, facecolor='w', edgecolor='k')
@@ -65,14 +65,14 @@ if __name__ == '__main__':
     plt.plot(dp_time, dp_reward, linewidth=lw, color='red', marker='s', ms=14, label='Ours', zorder=5)
 
     max_step = np.ceil(np.max([fcfs_time[-1], opt_time[-1], opt_real_time[-1]])).astype(int)
-    step_gap = 10
+    step_gap = 20
     num = range(0, max_step+step_gap, step_gap)
 
     reward_bound = np.ceil(opt_reward[-1])
     reward_step = 0.5
     plt.yticks(np.arange(0, reward_bound+reward_step, reward_step), fontsize=num_size)
     plt.xticks(num, fontsize=num_size)
-    plt.xlabel('Time step', fontsize=label_size)
+    plt.xlabel('Time (sec)', fontsize=label_size)
     plt.ylabel('Reward value', fontsize=label_size)
     plt.title('Accumulative Reward', fontsize=title_size)
     plt.grid(True)

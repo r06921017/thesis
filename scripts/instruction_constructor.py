@@ -71,10 +71,15 @@ class InstructionConstructor:
 
         # ignore emergency tasks
         self.task_loc = [0, 1, 2, 5, 6, 7]
-        self.task_priority = range(1, 5)  # 1~4
+        # self.task_priority = range(1, 5)  # 1~4
         self.task_duration = range(1, 10)  # 1~9
-        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}
-        self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 5, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}
+
+        # scenario modeling
+        self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 5, 5: 8}  # {task_priority (emotion: 2, 3, 4): gamma}
+        # self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5}  # {task_priority (emotion: 2, 3, 4): gamma}
+        self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}  # {task_priority (emotion: 2, 3, 4): beta}
+        self.task_priority = sorted(self.gamma_dict.keys())
+        self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 5, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}  # {function: time(sec)}
 
     def instr_cb(self, in_instructions):
         rospy.logdebug('instruction callback')
@@ -125,7 +130,7 @@ class InstructionConstructor:
             """
             Convert emotion into status and reward
             :param compound_score: emotional sentiment score from vader
-            :return: emotions (0:positive, 1:neutral, 2:negative)
+            :return: emotions (0:positive, 1:neutral, 2:negative), emotion+2 = task priority
             """
             if compound_score > 0.05:  # positive
                 return 0
@@ -169,7 +174,7 @@ class InstructionConstructor:
                             temp_des = self.human_dict['name'][instr_target].location
 
                         temp_instr = Instruction(id=self.last_id,
-                                                 r=emotion,
+                                                 r=self.gamma_dict[emotion+2],
                                                  b=self.b_dict[emotion+2],
                                                  type=0,
                                                  duration=self.dur_dict[ver_i[1][i]],
@@ -185,8 +190,8 @@ class InstructionConstructor:
 
         if last_id_buf == self.last_id:  # NOP for not detecting key words
             temp_instr = Instruction(id=self.last_id,
-                                     r=emotion,
-                                     b=self.b_dict[emotion + 2],
+                                     r=self.gamma_dict[emotion+2],
+                                     b=self.b_dict[emotion+2],
                                      type=0,
                                      duration=self.dur_dict[0],
                                      source=instr_source,
@@ -255,31 +260,34 @@ class InstructionConstructor:
             random.seed(int(args.seed))
             max_num = args.max_num
             des_ls = [random.choice(self.task_loc) for _ in range(max_num)]  # destination
-            r_list = [random.choice(self.task_priority) for _ in range(max_num)]  # reward list
-            b_list = [self.b_dict[r] for r in r_list]  # decay factor list
+            priority_list = [random.choice(self.task_priority) for _ in range(max_num)]  # reward list
             d_list = [random.choice(self.task_duration) for _ in range(max_num)]  # duration list
 
         else:
-            # des_ls = [5, 7, 0, 1, 1, 1, 0, 0, 7, 5]  # destination
-            # r_list = [3, 4, 2, 4, 1, 3, 1, 4, 3, 3]  # reward
-            # d_list = [9, 1, 3, 7, 7, 6, 3, 2, 2, 5]  # duration
-            # b_list = [self.b_dict[r] for r in r_list]  # decay factor list
-
             # des_ls = [0, 5, 5, 0, 7, 2, 1, 6, 2, 7, 2, 6, 1, 6, 0, 6, 5]  # destination
-            # r_list = [2, 2, 1, 2, 1, 3, 2, 2, 2, 3, 1, 4, 1, 2, 4, 1, 4]  # reward
+            # priority_list = [2, 2, 1, 2, 1, 3, 2, 2, 2, 3, 1, 4, 1, 2, 4, 1, 4]  # reward
             # d_list = [9, 2, 8, 3, 6, 9, 3, 7, 3, 8, 5, 7, 9, 1, 6, 5, 9]  # duration
-            # b_list = [self.b_dict[r] for r in r_list]  # decay factor list
 
-            des_ls = [0, 5, 5]  # destination
-            r_list = [2, 2, 1]  # reward
-            d_list = [5, 2, 8]  # duration
-            b_list = [self.b_dict[r] for r in r_list]  # decay factor list
+            # _test_instr = [(2, 3, 2), (2, 5, 15), (0, 1, 1), (1, 1, 3), (0, 2, 10),
+            #                (6, 3, 3), (5, 1, 10), (6, 4, 6), (7, 2, 2), (6, 5, 15)]  # (dest, priority, duration)
+
+            _test_instr = [(0, 1, 1), (1, 1, 3), (5, 1, 10)]  # (dest, priority, duration)
+
+            des_ls = list()
+            priority_list = list()
+            d_list = list()
+
+            for instr in _test_instr:
+                des_ls.append(instr[0])
+                priority_list.append(instr[1])
+                d_list.append(instr[2])
 
             max_num = len(des_ls)
 
         for i in range(max_num):
             temp_i = Instruction(id=self.last_id, type=0, duration=d_list[i], source='Charlie', status=0,
-                                 r=r_list[i], b=b_list[i], function=0, target='Bob', destination=des_ls[i], prev_id=-1)
+                                 r=self.gamma_dict[priority_list[i]], b=self.b_dict[priority_list[i]],
+                                 function=0, target='Bob', destination=des_ls[i], prev_id=-1)
             self.instr_dict[self.last_id] = temp_i
             self.last_id += 1
 
@@ -326,7 +334,7 @@ if __name__ == '__main__':
     parser.add_argument('--max_num', type=int, default=10)
     parser.add_argument('--is_rand', type=int, default=1)
     parser.add_argument('--is_sim', type=int, default=0)
-    parser.add_argument('--seed', type=int, default=1000)
+    parser.add_argument('--seed', type=int, default=1111)
     args = parser.parse_args(rospy.myargv()[1:])
 
     if args.is_rand == 1:
@@ -346,8 +354,9 @@ if __name__ == '__main__':
         rospy.set_param('/thesis/max_num', args.max_num)
         rospy.sleep(0.2)
 
-        while not rospy.get_param('/thesis/init_tmp', False):
-            pass
+        # rospy.loginfo('Waiting for /thesis/init_tmp ...')
+        # while not rospy.get_param('/thesis/init_tmp', False):
+        #     pass
 
         instr_constructor.test_scenario()
     else:

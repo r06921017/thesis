@@ -48,7 +48,7 @@ class TaskMotionPlannerFCFSSim:
         self.save_csv_flag = False
         self.done_instr = list()
         self.max_num = int(rospy.get_param('/thesis/max_num', 10))
-        self.seed = int(rospy.get_param('/thesis/seed', 1000))
+        self.seed = int(rospy.get_param('/thesis/seed', 1111))
         self.base_name = os.path.basename(__file__).split('.')[0]
         rospy.set_param('/thesis/init_tmp', True)
 

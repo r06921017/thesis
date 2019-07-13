@@ -35,19 +35,20 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         rospy.loginfo('TAMP Initialized!')
 
     def value_iter(self, in_node=None):
-        rospy.loginfo('value_iter, cur_node: {0}, next_node: {1}'.format(self.cur_node, self.next_node))
-
+        # Check in_node exists or not
         if in_node is None:
             _in_neighbor = list(self.cur_neighbor)  # copy the list, not changing self.cur_neighbor
         else:
             _in_neighbor = list(self.adjacency_matrix[in_node].astype(int).tolist())
+
+        rospy.loginfo('value_iter, in_node: {0}'.format(in_node))
 
         # Compare the accumulated reward of neighbor, move to the maximum one.
         neighbor_node = np.where(np.array(_in_neighbor) > 0)[0].tolist()
         candidate_steps = dict()  # {neighbor_node: {'reward': float, 'neighbor': np.array}}
 
         for n in neighbor_node:
-            temp_neighbor = self.move_adjacency_node(n)  # assuming moving toward the neighbor node n.
+            temp_neighbor = self.move_adjacency_node(dest_neighbor_node=n, in_node=in_node)  # assuming moving toward the neighbor node n.
             temp_neighbor_node = np.where(np.array(temp_neighbor) > 0)[0].tolist()
             rospy.logdebug('temp_neighbor_node = {0}'.format(temp_neighbor_node))
 
@@ -86,7 +87,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                 self.instr_dest_dict[instr.destination].add(instr.id)
                 self.instr_dict[instr.id] = instr
 
-            print 'self.instr_dict: ', self.instr_dict
+            # print 'self.instr_dict: ', self.instr_dict
 
         rospy.logdebug('len(self.instr_dict.keys()): {0}'.format(len(self.instr_dict.keys())))
 
@@ -168,6 +169,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         if self.move_lock:
             rospy.loginfo('move_lock .........................................')
             shutdown()
+
         else:
             if self.cur_node != self.next_node:
                 rospy.loginfo('Start simple_mode in nav_cb.')
@@ -175,6 +177,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                 simple_move_base(self.sac, loc[self.next_node][0], loc[self.next_node][1], loc[self.next_node][2])
                 self.cur_node = self.next_node
                 self.cur_neighbor = self.adjacency_matrix[self.cur_node].astype(int)
+                rospy.set_param('/thesis/pepper_location', self.cur_node)
                 rospy.loginfo('Change cur_node to: {0}'.format(self.cur_node))
 
             else:
@@ -191,6 +194,14 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                     for r in sorted(reward_dict.items(), key=operator.itemgetter(1), reverse=True):
                         do_instr = self.instr_dict[r[0]]
                         simple_rotate(loc[self.cur_node][2] - get_cur_pos(pos_topic='/amcl_pose', t=0.5)[2])
+
+                        # add to eliminate amcl divergence
+                        set_initial_pose(x=self.robot_x,
+                                         y=self.robot_y,
+                                         yaw=get_cur_pos(pos_topic='/amcl_pose', t=0.5)[2],
+                                         init_location=self.cur_node)
+                        # end: add to eliminate amcl divergence
+
                         rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
                         rospy.sleep(do_instr.duration)
                         del self.instr_dict[r[0]]
@@ -198,7 +209,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
                     # Reset the set when all the tasks in the instructions are done.
                     self.instr_dest_dict[self.cur_node].clear()
-                    rospy.logdebug('self.instr_dest_dict: {0}'.format(self.instr_dest_dict))
+                    # rospy.logdebug('self.instr_dest_dict: {0}'.format(self.instr_dest_dict))
 
                     # Convert undo_tasks to a list() and publish to /thesis/instruction_buffer
                     undo_instr_list = list()
@@ -238,7 +249,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         # rospy.loginfo('move_dis: {0}'.format(move_dis))
 
         if move_dis >= self.dis_unit:
-            self.move_adjacency_node(dest_neighbor_node=self.next_node, sim=False, render=True)
+            # self.move_adjacency_node(dest_neighbor_node=self.next_node, sim=False, render=True)
             self.robot_x = r_amcl.pose.pose.position.x
             self.robot_y = r_amcl.pose.pose.position.y
 
@@ -249,7 +260,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
 
 if __name__ == '__main__':
-    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
+    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.DEBUG)
     tamp = TaskMotionPlannerDP()
     # tamp.run_plan_viz()  # this is for simulation
     tamp.run_plan()  # this is for real world application

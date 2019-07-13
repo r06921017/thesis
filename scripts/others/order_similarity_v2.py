@@ -23,7 +23,9 @@ if __name__ == '__main__':
     # print _exp_dir_list
 
     _exp_dir_list = ['instr_10_1002', 'instr_10_1005', 'instr_10_1004', 'instr_10_1001', 'instr_10_1111_backup',
-                     'instr_10_1006', 'instr_10_1007', 'instr_10_1009']
+                     'instr_10_1006', 'instr_10_1007', 'instr_10_1009', 'instr_10_1111_good']
+
+    # _exp_dir_list = ['instr_10_1111_good']
 
     planners = ['opt', 'fcfs', 'rand', 'pf', 'sf', 'dp']
 
@@ -37,7 +39,7 @@ if __name__ == '__main__':
             temp_df = pd.read_csv(_exp_dir + 'task_motion_planner_' + p + '_sim_done.csv')
             temp_dict = dict()
 
-            print p, temp_df['done'].tolist()
+            print p, (temp_df['done']+1).tolist()
 
             for i, e in enumerate(temp_df['done'].tolist()):
                 temp_dict[e] = i  # {instr_id, index}

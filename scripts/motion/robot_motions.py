@@ -24,7 +24,7 @@ import pickle
 
 # Start move_base
 rospy.loginfo('Start move_base.')
-subprocess.call('~/catkin_ws/src/thesis/scripts/start_move_base.sh', shell=True)
+subprocess.call('~/catkin_ws/src/thesis/scripts/motion/start_move_base.sh', shell=True)
 rospy.sleep(1.5)
 rospy.loginfo('move_base launch!')
 
@@ -155,7 +155,13 @@ def get_cur_pos(pos_topic, t):
 
 
 def simple_rotate(delta_rad):
-    motion_service.moveTo(0.0, 0.0, delta_rad, 1)
+    if delta_rad < -pi:
+        _angle = delta_rad + 2*pi
+    elif delta_rad > pi:
+        _angle = delta_rad - 2*pi
+    else:
+        _angle = delta_rad
+    motion_service.moveTo(0.0, 0.0, _angle, 1)
     return
 
 # def simple_rotate(delta_rad, rad_th=pi/3.0):
@@ -186,11 +192,11 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
 
         # # noinspection PyBroadException
         # try:
-        #     subprocess.call('~/catkin_ws/src/thesis/scripts/stop_move_base.sh', shell=True)
+        #     subprocess.call('~/catkin_ws/src/thesis/scripts/motion/stop_move_base.sh', shell=True)
         # except Exception:
         #     pass
         #
-        # subprocess.call('~/catkin_ws/src/thesis/scripts/start_move_base.sh', shell=True)
+        # subprocess.call('~/catkin_ws/src/thesis/scripts/motion/start_move_base.sh', shell=True)
         # time.sleep(1.5)
 
         if '/move_base' in rosnode.get_node_names():
@@ -207,44 +213,72 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
                     next_location = [temp_global_path.plan.poses[path_th].pose.position.x,
                                      temp_global_path.plan.poses[path_th].pose.position.y]
 
+                    # Update tan_yaw for smooth navigation
+                    tan_yaw = atan2(dest_y - temp_global_path.plan.poses[-path_th].pose.position.y,
+                                    dest_x - temp_global_path.plan.poses[-path_th].pose.position.x)
+
                 else:
-                    next_location = [temp_global_path.plan.poses[-path_th].pose.position.x,
-                                     temp_global_path.plan.poses[-path_th].pose.position.y]
+                    next_location = [temp_global_path.plan.poses[-1].pose.position.x,
+                                     temp_global_path.plan.poses[-1].pose.position.y]
+
+                    # Update tan_yaw for smooth navigation
+                    tan_yaw = atan2(dest_y - temp_global_path.plan.poses[-1].pose.position.y,
+                                    dest_x - temp_global_path.plan.poses[-1].pose.position.x)
+
+                rospy.logwarn('next_location: {0}'.format(next_location))
 
                 theta = atan2(next_location[1] - cur_y, next_location[0] - cur_x)  # the angle to path direction
-                simple_rotate(theta)
+                rospy.logwarn('rotation first theta: {0}'.format(theta))
+
+                simple_rotate(theta-cur_yaw)
                 posture_service.goToPosture("StandInit", 0.5)
                 rospy.loginfo('rotation finish')
 
-                # Update tan_yaw for smooth navigation
-                tan_yaw = atan2(dest_y-temp_global_path.plan.poses[-4].pose.position.y,
-                                dest_x-temp_global_path.plan.poses[-4].pose.position.x)
-
             rospy.loginfo('tan_yaw = {0}'.format(tan_yaw))
-            within_time = run_movebase(sac, dest_x, dest_y, tan_yaw)
-            rospy.loginfo('within_time: {0}'.format(within_time))
 
-            if not within_time:
-                shutdown()
-                rospy.loginfo('Timed out achieving goal.')
+            # simple move if the goal is less than 1.0 (m)
+            if norm([dest_x - cur_x, dest_y - cur_y]) < 1.0:
+                if with_rotation_first:
+                    motion_service.moveTo(float(norm([dest_x - cur_x, dest_y - cur_y])), 0, 0, 2)
+                else:
+                    motion_service.moveTo(dest_x - cur_x, dest_y - cur_y, tan_yaw - cur_yaw, 2)
+                return
 
             else:
-                state = sac.get_state()
-                if state == GoalStatus.SUCCEEDED:
-                    rospy.loginfo('Goal succeed!')
+                within_time = run_movebase(sac, dest_x, dest_y, tan_yaw)
+                rospy.loginfo('within_time: {0}'.format(within_time))
+
+                if not within_time:
+                    shutdown()
+                    rospy.loginfo('Timed out achieving goal.')
+
+                    # noinspection PyBroadException
+                    try:
+                        subprocess.call('~/catkin_ws/src/thesis/scripts/motion/stop_move_base.sh', shell=True)
+                        time.sleep(0.2)
+                    except Exception:
+                        pass
+                    subprocess.call('~/catkin_ws/src/thesis/scripts/motion/start_move_base.sh', shell=True)
+                    time.sleep(1.0)
 
                 else:
-                    rospy.loginfo('Goal failed with error code:' + str(goal_states[state]))
-                    shutdown()
-                    inflation_radius -= 0.2
-                    simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius, with_rotation_first)
+                    state = sac.get_state()
+                    if state == GoalStatus.SUCCEEDED:
+                        rospy.loginfo('Goal succeed!')
+
+                    else:
+                        rospy.loginfo('Goal failed with error code:' + str(goal_states[state]))
+                        shutdown()
+                        inflation_radius -= 0.2
+                        simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius, with_rotation_first)
         else:
             # noinspection PyBroadException
             try:
-                subprocess.call('~/catkin_ws/src/thesis/scripts/stop_move_base.sh', shell=True)
+                subprocess.call('~/catkin_ws/src/thesis/scripts/motion/stop_move_base.sh', shell=True)
+                time.sleep(0.2)
             except Exception:
                 pass
-            subprocess.call('~/catkin_ws/src/thesis/scripts/start_move_base.sh', shell=True)
+            subprocess.call('~/catkin_ws/src/thesis/scripts/motion/start_move_base.sh', shell=True)
             time.sleep(1.0)
 
     return
