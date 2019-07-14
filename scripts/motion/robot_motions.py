@@ -240,6 +240,7 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
             if norm([dest_x - cur_x, dest_y - cur_y]) < 1.0:
                 if with_rotation_first:
                     motion_service.moveTo(float(norm([dest_x - cur_x, dest_y - cur_y])), 0, 0, 2)
+
                 else:
                     motion_service.moveTo(dest_x - cur_x, dest_y - cur_y, tan_yaw - cur_yaw, 2)
                 return
@@ -249,9 +250,8 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
                 rospy.loginfo('within_time: {0}'.format(within_time))
 
                 if not within_time:
+                    rospy.logwarn('Timed out achieving goal.')
                     shutdown()
-                    rospy.loginfo('Timed out achieving goal.')
-
                     # noinspection PyBroadException
                     try:
                         subprocess.call('~/catkin_ws/src/thesis/scripts/motion/stop_move_base.sh', shell=True)
@@ -259,7 +259,8 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
                     except Exception:
                         pass
                     subprocess.call('~/catkin_ws/src/thesis/scripts/motion/start_move_base.sh', shell=True)
-                    time.sleep(1.0)
+                    time.sleep(0.5)
+                    simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius, with_rotation_first)
 
                 else:
                     state = sac.get_state()
@@ -267,7 +268,7 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
                         rospy.loginfo('Goal succeed!')
 
                     else:
-                        rospy.loginfo('Goal failed with error code:' + str(goal_states[state]))
+                        rospy.logwarn('Goal failed with error code:' + str(goal_states[state]))
                         shutdown()
                         inflation_radius -= 0.2
                         simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius, with_rotation_first)

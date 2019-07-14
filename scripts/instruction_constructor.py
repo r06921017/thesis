@@ -268,10 +268,12 @@ class InstructionConstructor:
             # priority_list = [2, 2, 1, 2, 1, 3, 2, 2, 2, 3, 1, 4, 1, 2, 4, 1, 4]  # reward
             # d_list = [9, 2, 8, 3, 6, 9, 3, 7, 3, 8, 5, 7, 9, 1, 6, 5, 9]  # duration
 
-            # _test_instr = [(2, 3, 2), (2, 5, 15), (0, 1, 1), (1, 1, 3), (0, 2, 10),
-            #                (6, 3, 3), (5, 1, 10), (6, 4, 6), (7, 2, 2), (6, 5, 15)]  # (dest, priority, duration)
+            _test_instr = [(2, 3, 2), (2, 5, 15), (0, 1, 1), (1, 1, 3), (0, 2, 10),
+                           (6, 3, 3), (5, 1, 10), (6, 4, 6), (7, 2, 2), (6, 5, 15)]  # (dest, priority, duration)
 
-            _test_instr = [(0, 1, 1), (1, 1, 3), (5, 1, 10)]  # (dest, priority, duration)
+            # _test_instr = [(0, 1, 1), (1, 1, 3), (5, 1, 10)]  # (dest, priority, duration)
+            # _test_instr = [(6, 5, 3), (0, 1, 2)]  # (dest, priority, duration)
+            # _test_instr = [(0, 1, 2)]  # (dest, priority, duration)
 
             des_ls = list()
             priority_list = list()
