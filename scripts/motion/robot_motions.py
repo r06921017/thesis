@@ -7,7 +7,7 @@ import qi
 import os
 # import datetime
 import subprocess
-from math import atan2, pi, copysign
+from math import atan2, pi
 from numpy.linalg import norm
 
 import actionlib
@@ -32,6 +32,8 @@ rospy.wait_for_service('/move_base/make_plan', timeout=5)
 get_global_path = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
 
 cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
+cancel_pub = rospy.Publisher('/move_base/cancel', GoalID, queue_size=1)
+# cancel_pub = rospy.Publisher('/move_base/cancel', GoalID, queue_size=1)
 
 goal_states = ['PENDING', 'ACTIVE', 'PREEMPTED',
                'SUCCEEDED', 'ABORTED', 'REJECTED',
@@ -154,6 +156,18 @@ def get_cur_pos(pos_topic, t):
         exit(1)
 
 
+def relaunch_move_base():
+    # noinspection PyBroadException
+    try:
+        subprocess.call('~/catkin_ws/src/thesis/scripts/motion/stop_move_base.sh', shell=True)
+        rospy.sleep(0.2)
+    except Exception:
+        pass
+    subprocess.call('~/catkin_ws/src/thesis/scripts/motion/start_move_base.sh', shell=True)
+    rospy.sleep(1.0)
+    return
+
+
 def simple_rotate(delta_rad):
     if delta_rad < -pi:
         _angle = delta_rad + 2*pi
@@ -163,11 +177,6 @@ def simple_rotate(delta_rad):
         _angle = delta_rad
     motion_service.moveTo(0.0, 0.0, _angle, 1)
     return
-
-# def simple_rotate(delta_rad, rad_th=pi/3.0):
-#     temp_rad = delta_rad if abs(delta_rad) < rad_th else copysign(rad_th, delta_rad)
-#     motion_service.moveTo(0.0, 0.0, temp_rad, 1)
-#     return
 
 
 def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_rotation_first=True, path_th=4):
@@ -190,25 +199,19 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
         goal.pose.position.x = dest_x
         goal.pose.position.y = dest_y
 
-        # # noinspection PyBroadException
-        # try:
-        #     subprocess.call('~/catkin_ws/src/thesis/scripts/motion/stop_move_base.sh', shell=True)
-        # except Exception:
-        #     pass
-        #
-        # subprocess.call('~/catkin_ws/src/thesis/scripts/motion/start_move_base.sh', shell=True)
-        # time.sleep(1.5)
-
         if '/move_base' in rosnode.get_node_names():
             rospy.loginfo('move_base node succeed!')
 
-            # Simple Action Client
-            # sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)  # type: SimpleActionClient
-
             change_local_costmap_radius(inflation_radius)
+            rospy.sleep(0.1)
 
             if with_rotation_first:
-                temp_global_path = get_global_path(start, goal, 0.1)
+                # noinspection PyBroadException
+                try:
+                    temp_global_path = get_global_path(start, goal, 0.1)
+                except Exception:
+                    temp_global_path = []
+
                 if len(temp_global_path.plan.poses) > path_th:
                     next_location = [temp_global_path.plan.poses[path_th].pose.position.x,
                                      temp_global_path.plan.poses[path_th].pose.position.y]
@@ -217,13 +220,15 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
                     tan_yaw = atan2(dest_y - temp_global_path.plan.poses[-path_th].pose.position.y,
                                     dest_x - temp_global_path.plan.poses[-path_th].pose.position.x)
 
-                else:
+                elif len(temp_global_path.plan.poses) > 0:
                     next_location = [temp_global_path.plan.poses[-1].pose.position.x,
                                      temp_global_path.plan.poses[-1].pose.position.y]
 
                     # Update tan_yaw for smooth navigation
                     tan_yaw = atan2(dest_y - temp_global_path.plan.poses[-1].pose.position.y,
                                     dest_x - temp_global_path.plan.poses[-1].pose.position.x)
+                else:
+                    next_location = [dest_x, dest_y]
 
                 rospy.logwarn('next_location: {0}'.format(next_location))
 
@@ -246,20 +251,15 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
                 return
 
             else:
+                subprocess.call('rosservice call /move_base/clear_costmaps', shell=True)  # clear local costmap
+                rospy.sleep(0.1)
                 within_time = run_movebase(sac, dest_x, dest_y, tan_yaw)
                 rospy.loginfo('within_time: {0}'.format(within_time))
 
                 if not within_time:
                     rospy.logwarn('Timed out achieving goal.')
                     shutdown()
-                    # noinspection PyBroadException
-                    try:
-                        subprocess.call('~/catkin_ws/src/thesis/scripts/motion/stop_move_base.sh', shell=True)
-                        time.sleep(0.2)
-                    except Exception:
-                        pass
-                    subprocess.call('~/catkin_ws/src/thesis/scripts/motion/start_move_base.sh', shell=True)
-                    time.sleep(0.5)
+                    relaunch_move_base()
                     simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius, with_rotation_first)
 
                 else:
@@ -270,25 +270,23 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
                     else:
                         rospy.logwarn('Goal failed with error code:' + str(goal_states[state]))
                         shutdown()
+                        relaunch_move_base()
+                        rospy.sleep(1)
                         inflation_radius -= 0.2
                         simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius, with_rotation_first)
         else:
-            # noinspection PyBroadException
-            try:
-                subprocess.call('~/catkin_ws/src/thesis/scripts/motion/stop_move_base.sh', shell=True)
-                time.sleep(0.2)
-            except Exception:
-                pass
-            subprocess.call('~/catkin_ws/src/thesis/scripts/motion/start_move_base.sh', shell=True)
-            time.sleep(1.0)
+            relaunch_move_base()
+            rospy.sleep(0.5)
 
     return
 
 
 def shutdown():
     rospy.loginfo('Shutdown the robot ...')
-    rospy.sleep(1)
     cmd_vel_pub.publish(Twist())
+    cancel_pub.publish(GoalID())
+    rospy.sleep(0.01)
+
     # rospy.sleep(1)
     # rospy.loginfo('canceling the goal ...')
     # sac.cancel_goal()
@@ -311,10 +309,15 @@ def run_movebase(sac, x, y, yaw):
     goal.target_pose.header.frame_id = 'map'
     goal.target_pose.header.stamp = rospy.Time.now()
 
-    sac.wait_for_server()
-    sac.send_goal(goal)
-    within_time = sac.wait_for_result(rospy.Duration(180))  # 3 mins
-    time.sleep(0.5)
+    # noinspection PyBroadException
+    try:
+        sac.wait_for_server()
+        sac.send_goal(goal)
+        within_time = sac.wait_for_result(rospy.Duration(50))  # 50 sec
+        rospy.sleep(0.5)
+    except Exception:
+        rospy.logerr('wait_for_server failed ...')
+        within_time = False
 
     return within_time
 

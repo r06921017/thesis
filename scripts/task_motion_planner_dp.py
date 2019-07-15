@@ -38,6 +38,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         # Check in_node exists or not
         if in_node is None:
             _in_neighbor = list(self.cur_neighbor)  # copy the list, not changing self.cur_neighbor
+            in_node = self.cur_node
         else:
             _in_neighbor = list(self.adjacency_matrix[in_node].astype(int).tolist())
 
@@ -173,7 +174,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         else:
             if self.cur_node != self.next_node:
                 rospy.loginfo('Start simple_mode in nav_cb.')
-                shutdown()
+                rospy.sleep(0.2)
                 simple_move_base(self.sac, loc[self.next_node][0], loc[self.next_node][1], loc[self.next_node][2])
                 self.cur_node = self.next_node
                 self.cur_neighbor = self.adjacency_matrix[self.cur_node].astype(int)
@@ -183,6 +184,13 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
             else:
                 # Reach node
                 if len(self.instr_dest_dict[self.cur_node]) > 0:
+                    # add to eliminate amcl divergence
+                    # set_initial_pose(x=self.robot_x,
+                    #                  y=self.robot_y,
+                    #                  yaw=get_cur_pos(pos_topic='/amcl_pose', t=0.5)[2],
+                    #                  init_location=self.cur_node)
+                    # end: add to eliminate amcl divergence
+
                     # Create reward_dict = {'id (int)': 'reward (float)'}
                     reward_dict = dict()
                     for idx in self.instr_dest_dict[self.cur_node]:
@@ -190,17 +198,13 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                         if self.instr_dict[idx].prev_id not in self.instr_dict.keys():
                             reward_dict[self.instr_dict[idx].id] = self.instr_dict[idx].r
 
+                    # Stop the move_base at first
+                    self.move_lock = True
+                    shutdown()
                     # Sort the instructions with the max reward
                     for r in sorted(reward_dict.items(), key=operator.itemgetter(1), reverse=True):
                         do_instr = self.instr_dict[r[0]]
                         simple_rotate(loc[self.cur_node][2] - get_cur_pos(pos_topic='/amcl_pose', t=0.5)[2])
-
-                        # add to eliminate amcl divergence
-                        set_initial_pose(x=self.robot_x,
-                                         y=self.robot_y,
-                                         yaw=get_cur_pos(pos_topic='/amcl_pose', t=0.5)[2],
-                                         init_location=self.cur_node)
-                        # end: add to eliminate amcl divergence
 
                         rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
                         rospy.sleep(do_instr.duration)
@@ -215,8 +219,11 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                     undo_instr_list = list()
                     for key, value in self.instr_dict.iteritems():
                         undo_instr_list.append(value)
-
                     self.task_pub.publish(undo_instr_list)
+
+                    # Relaunch move_base
+                    relaunch_move_base()
+                    self.move_lock = False
 
                 else:
                     rospy.loginfo('No instructions on task {0}'.format(self.cur_node))
