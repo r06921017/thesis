@@ -15,6 +15,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         self.cur_node: the node where robot starts to move, initial at charge (2), type: int
         """
         TaskMotionPlannerFCFS.__init__(self)
+        self.base_name = os.path.basename(__file__).split('.')[0]
         self.shortest_path = nx.floyd_warshall_numpy(self.map_graph)
 
         # for real world motion
@@ -84,6 +85,9 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         self.move_lock = True
         # Convert InstructionArray into dictionary
         if type(in_instructions) == thesis.msg._InstructionArray.InstructionArray:
+
+            self.save_csv_flag = True
+
             for instr in in_instructions.data:
                 self.instr_dest_dict[instr.destination].add(instr.id)
                 self.instr_dict[instr.id] = instr
@@ -184,6 +188,9 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
             else:
                 # Reach node
                 if len(self.instr_dest_dict[self.cur_node]) > 0:
+                    simple_rotate(loc[self.cur_node][2] - get_cur_pos(pos_topic='/amcl_pose', t=0.5)[2])
+                    rospy.sleep(0.5)
+
                     # add to eliminate amcl divergence
                     # set_initial_pose(x=self.robot_x,
                     #                  y=self.robot_y,
@@ -204,10 +211,14 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                     # Sort the instructions with the max reward
                     for r in sorted(reward_dict.items(), key=operator.itemgetter(1), reverse=True):
                         do_instr = self.instr_dict[r[0]]
-                        simple_rotate(loc[self.cur_node][2] - get_cur_pos(pos_topic='/amcl_pose', t=0.5)[2])
-
                         rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
                         rospy.sleep(do_instr.duration)
+
+                        # for experiment evaluation
+                        self.cal_accu_reward(do_instr)  # calculate the accumulative reward
+                        self.done_instr.append(do_instr.id)
+                        # end
+
                         del self.instr_dict[r[0]]
                         self.show_instr()
 
@@ -230,6 +241,13 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                     rospy.sleep(2)
                     if len(self.instr_dict) > 0:
                         self.plan_task(self.instr_dict)
+
+                    # save the accumulative reward, all
+                    elif self.save_csv_flag:
+                        self.save_done_instr_id()
+                        self.save_accu_reward()
+                        self.save_csv_flag = False
+                    # end
 
         return
 

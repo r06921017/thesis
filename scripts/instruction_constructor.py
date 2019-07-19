@@ -107,7 +107,8 @@ class InstructionConstructor:
                                                     function=0,
                                                     target='Bob',
                                                     destination=in_int.data,
-                                                    prev_id=-1)
+                                                    prev_id=-1,
+                                                    start_time=time.time())
         self.last_id += 1
 
         self.launch_instr()
@@ -183,6 +184,7 @@ class InstructionConstructor:
                                                  function=ver_i[1][i],
                                                  target=instr_target,
                                                  destination=temp_des,
+                                                 start_time=time.time(),
                                                  prev_id=self.last_id-1 if i > 0 else -1)
 
                         self.last_id += 1
@@ -199,7 +201,8 @@ class InstructionConstructor:
                                      function=0,
                                      target=instr_target,
                                      destination=self.human_dict['name'][instr_target].location,
-                                     prev_id=-1)
+                                     prev_id=-1,
+                                     start_time=time.time())
             self.last_id += 1
             self.instr_dict[temp_instr.id] = temp_instr
 
@@ -289,7 +292,7 @@ class InstructionConstructor:
         for i in range(max_num):
             temp_i = Instruction(id=self.last_id, type=0, duration=d_list[i], source='Charlie', status=0,
                                  r=self.gamma_dict[priority_list[i]], b=self.b_dict[priority_list[i]],
-                                 function=0, target='Bob', destination=des_ls[i], prev_id=-1)
+                                 function=0, target='Bob', destination=des_ls[i], prev_id=-1, start_time=time.time())
             self.instr_dict[self.last_id] = temp_i
             self.last_id += 1
 
@@ -356,11 +359,13 @@ if __name__ == '__main__':
         rospy.set_param('/thesis/max_num', args.max_num)
         rospy.sleep(0.2)
 
-        # rospy.loginfo('Waiting for /thesis/init_tmp ...')
-        # while not rospy.get_param('/thesis/init_tmp', False):
-        #     pass
-
+        # This is for accumulative reward curve
+        rospy.loginfo('Waiting for /thesis/init_tmp ...')
+        while not rospy.get_param('/thesis/init_tmp', False):
+            pass
+        # end
         instr_constructor.test_scenario()
+
     else:
         rospy.logerr('is_sim only supports 0 or 1.')
         exit(1)

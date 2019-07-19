@@ -37,6 +37,19 @@ class TaskMotionPlannerFCFS:
         self._pkg_dir = rospkg.RosPack().get_path('thesis')
         self.cur_neighbor = self.adjacency_matrix[self.cur_node].astype(int).tolist()
 
+        # for experiment evaluations
+        self.plan_time = 0.0
+        self.accu_r = 0.0  # accumulate reward
+        self.accu_r_list = [0.0]
+        self.time_r_list = [0.0]
+        self.save_csv_flag = False
+        self.done_instr = list()
+        self.max_num = int(rospy.get_param('/thesis/max_num', 10))
+        self.seed = int(rospy.get_param('/thesis/seed', 1111))
+        self.base_name = os.path.basename(__file__).split('.')[0]
+        rospy.set_param('/thesis/init_tmp', True)
+        # end
+
     def show_instr(self):
         _loc_symbol = {0: 'office',
                        1: 'bedroom',
@@ -203,6 +216,54 @@ class TaskMotionPlannerFCFS:
             rospy.loginfo('Motion: from {0} to {1}'.format(self.cur_node, self.next_node))
             self.move_adjacency_node(self.next_node, sim=False, render=True)
 
+        return
+
+    def cal_accu_reward(self, input_instr):
+        # calculate obtained reward
+        # rospy.set_param('instr_start_time') is in "instruction_constructor.py"
+        _temp_step = (time.time() - rospy.get_param('/instr_start_time')) / self.sim_time_step
+        self.accu_r += input_instr.r * (input_instr.b ** _temp_step)
+        self.accu_r_list.append(self.accu_r)
+        self.time_r_list.append(_temp_step)
+        rospy.logdebug('accu reward: {0}'.format(self.accu_r))
+
+        return
+
+    def save_accu_reward(self, time_list=None, r_list=None, csv_name=None):
+        rospy.loginfo('Saving accumulative reward')
+
+        if time_list is None:
+            time_list = self.time_r_list
+        if r_list is None:
+            r_list = self.accu_r_list
+        if csv_name is None:
+            csv_name = self.base_name+'_reward.csv'
+
+        csv_file = self._pkg_dir + '/exp2/instr_' + str(self.max_num) + '_' + str(self.seed) + '/' + csv_name
+        output_df = pd.DataFrame({'time': time_list, 'reward': r_list})
+        output_df.to_csv(csv_file, index=False, columns=['time', 'reward'])
+
+        rospy.sleep(1)
+        rospy.loginfo('Save to: {0}'.format(csv_file))
+        rospy.loginfo('Done!')
+        return
+
+    def save_done_instr_id(self, id_seq=None, csv_name=None):
+        rospy.loginfo('Save done instructions')
+
+        if id_seq is None:
+            id_seq = self.done_instr
+        if csv_name is None:
+            csv_name = self.base_name+'_done.csv'
+
+        rospy.loginfo('done_instr: {0}'.format(id_seq))
+        csv_file = self._pkg_dir + '/exp2/instr_' + str(self.max_num) + '_' + str(self.seed) + '/' + csv_name
+        output_df = pd.DataFrame({'done': id_seq})
+        output_df.to_csv(csv_file, index=False)
+
+        rospy.sleep(1)
+        rospy.loginfo('Save to: {0}'.format(csv_file))
+        rospy.loginfo('Done!')
         return
 
     def run_plan_viz(self):

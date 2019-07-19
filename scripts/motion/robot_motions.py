@@ -260,7 +260,8 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
                     rospy.logwarn('Timed out achieving goal.')
                     shutdown()
                     relaunch_move_base()
-                    simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius, with_rotation_first)
+                    simple_move_base(sac=sac, dest_x=dest_x, dest_y=dest_y, dest_yaw=dest_yaw,
+                                     inflation_radius=inflation_radius, with_rotation_first=False, path_th=4)
 
                 else:
                     state = sac.get_state()
@@ -273,7 +274,8 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
                         relaunch_move_base()
                         rospy.sleep(1)
                         inflation_radius -= 0.2
-                        simple_move_base(dest_x, dest_y, dest_yaw, inflation_radius, with_rotation_first)
+                        simple_move_base(sac=sac, dest_x=dest_x, dest_y=dest_y, dest_yaw=dest_yaw,
+                                         inflation_radius=inflation_radius, with_rotation_first=False, path_th=4)
         else:
             relaunch_move_base()
             rospy.sleep(0.5)

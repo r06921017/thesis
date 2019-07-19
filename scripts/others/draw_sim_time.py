@@ -15,6 +15,7 @@ if __name__ == '__main__':
     pf = [320.46, 722.3933333, 1754.76, 2787.856667, 3325.553333, 5202.06, 6896.566667]
     sf = [158.0666667, 219.1733333, 418.69, 633.5933333, 755.9866667, 1133.556667, 1401.316667]
     dp = [159.3066667, 251.1833333, 435.56, 572.67, 658.3166667, 939.52, 1168.256667]
+    dp_real = [223.35938007, 283.524058104, 469.623682976, 708.655369997, 758.450192928, 1038.20009303, 1387.44871497]
 
     f = plt.figure(num=None, figsize=(14, 9), dpi=80, facecolor='w', edgecolor='k')
     ax = f.add_subplot(111)
@@ -31,9 +32,11 @@ if __name__ == '__main__':
     plt.plot(num, rand, linewidth=lw, color='purple', marker='D', ms=mark_size, label='Random', zorder=1)
     plt.plot(num, pf, linewidth=lw, color='green', marker='P', ms=mark_size, label='PF', zorder=2)
     plt.plot(num, sf, linewidth=lw, color='orange', marker='X', ms=mark_size, label='SF', zorder=4)
-    plt.plot(num, dp, linewidth=lw, color='red', marker='s', ms=mark_size, label='Ours', zorder=3)
+    plt.plot(num, dp, linewidth=lw, color='red', marker='s', ms=mark_size, label='Simulation', zorder=3)
+    plt.plot(num, dp_real, linewidth=lw, color='deepskyblue', marker='H', ms=mark_size, label='Real world', zorder=3)
 
     plt.yticks(np.arange(0, 7200, 500), fontsize=num_size)
+    # plt.yticks(np.arange(0, 1450, 100), fontsize=num_size)
     plt.xticks(num, fontsize=num_size)
     plt.xlabel('Number of instructions', fontsize=label_size)
     plt.ylabel('Processing time (sec)', fontsize=label_size)

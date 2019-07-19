@@ -14,6 +14,7 @@ if __name__ == '__main__':
     pf = [0.1669830091, 0.13472983, 0.1386068314, 0.1534352285, 0.1575112641, 0.1422148464, 0.1444202492]
     sf = [0.327673714, 0.4076543253, 0.5776717434, 0.6320762491, 0.6529622864, 0.6851263069, 0.691236642]
     dp = [0.2949133982, 0.4094846073, 0.5878398172, 0.7077395415, 0.7547935757, 0.8047040699, 0.8754247444]
+    dp_real = [67/223.35938007, 100/283.524058104, 234/469.623682976, 406/708.655369997, 495/758.450192928, 727/1038.20009303, 988/1387.44871497]
 
     f = plt.figure(num=None, figsize=(14, 9), dpi=80, facecolor='w', edgecolor='k')
     ax = f.add_subplot(111)
@@ -30,7 +31,8 @@ if __name__ == '__main__':
     plt.plot(num, rand, linewidth=lw, color='purple', marker='D', ms=mark_size, label='Random', zorder=1)
     plt.plot(num, pf, linewidth=lw, color='green', marker='P', ms=mark_size, label='PF', zorder=2)
     plt.plot(num, sf, linewidth=lw, color='orange', marker='X', ms=mark_size, label='SF', zorder=4)
-    plt.plot(num, dp, linewidth=lw, color='red', marker='s', ms=mark_size, label='Ours', zorder=3)
+    plt.plot(num, dp, linewidth=lw, color='red', marker='s', ms=mark_size, label='Simulation', zorder=3)
+    plt.plot(num, dp_real, linewidth=lw, color='deepskyblue', marker='H', ms=mark_size, label='Real world', zorder=3)
 
     plt.yticks(np.arange(0, 1.05, 0.05), fontsize=num_size)
     plt.xticks(num, fontsize=num_size)
