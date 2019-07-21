@@ -116,7 +116,7 @@ def hand_eye_obj(joints, face_range=1, angle_range=40, obj_eye_range=60):  # pix
             # check if eyes are looking at object, calculate the angle btw object and eyes
             obj_vec = obj_pos - ear
             obj_eye_angle = vector_angle(eye_vec, obj_vec)
-            rospy.loginfo('eye to {0} angle = {1}'.format(obj.Class, get_round(obj_eye_angle)))
+            rospy.logdebug('eye to {0} angle = {1}'.format(obj.Class, get_round(obj_eye_angle)))
 
             if np.abs(obj_eye_angle) < obj_eye_range:  # unit: degree
                 eye_obj_list.append(obj)
@@ -125,10 +125,10 @@ def hand_eye_obj(joints, face_range=1, angle_range=40, obj_eye_range=60):  # pix
         rospy.logdebug('lhand_vec = {0}'.format(get_round(lhand_vec)))
         rospy.logdebug('eye_vec   = {0}'.format(get_round(eye_vec)))
 
-        rospy.loginfo('hand obj list = {0}'.format([ele.Class for ele in hand_obj_list]))
-        rospy.loginfo('eye obj list  = {0}'.format([ele.Class for ele in eye_obj_list]))
-        rospy.loginfo('hand eye angle = {0}, {1}'.format(get_round(rhand_eye_angle), get_round(lhand_eye_angle)))
-        rospy.loginfo('looking at hand? {0}'.format(hand_eye))
+        rospy.logdebug('hand obj list = {0}'.format([ele.Class for ele in hand_obj_list]))
+        rospy.logdebug('eye obj list  = {0}'.format([ele.Class for ele in eye_obj_list]))
+        rospy.logdebug('hand eye angle = {0}, {1}'.format(get_round(rhand_eye_angle), get_round(lhand_eye_angle)))
+        rospy.logdebug('looking at hand? {0}'.format(hand_eye))
 
     return hand_obj_list, eye_obj_list, hand_eye
 

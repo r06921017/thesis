@@ -5,7 +5,7 @@ Solve task planning with dynamic programming (value iteration)
 """
 from task_motion_planner_fcfs import *
 import operator
-from motion.robot_motions import *
+from robot_motions import *
 # from std_msgs.msg import Int32
 
 
@@ -24,6 +24,9 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         self.sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)  # type: SimpleActionClient
         self.move_lock = False
         self.dis_unit = 0.15
+
+        rospy.set_param('/thesis/face_track', False)
+        rospy.set_param('/thesis/next_node', -1)
 
         self.amcl_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.pos_cb)
         # self.motion_sub = rospy.Subscriber('/thesis/next_node', Int32, self.nav_cb, queue_size=5)
@@ -120,7 +123,13 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
             rospy.loginfo('plan_task result: {0}'.format(self.next_node))
             # self.motion_pub.publish(self.next_node)
-            self.move_lock = False
+
+            if rospy.get_param('/thesis/next_node', -1) != self.next_node:  # change the decision
+                shutdown()
+                relaunch_move_base()
+
+        self.move_lock = False
+
         return
 
     def plan_motion_viz(self):
@@ -177,25 +186,36 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
         else:
             if self.cur_node != self.next_node:
-                rospy.loginfo('Start simple_mode in nav_cb.')
-                rospy.sleep(0.2)
-                simple_move_base(self.sac, loc[self.next_node][0], loc[self.next_node][1], loc[self.next_node][2])
-                self.cur_node = self.next_node
-                self.cur_neighbor = self.adjacency_matrix[self.cur_node].astype(int)
-                rospy.set_param('/thesis/pepper_location', self.cur_node)
-                rospy.loginfo('Change cur_node to: {0}'.format(self.cur_node))
+                if rospy.get_param('/thesis/next_node', -1) != self.next_node:
+                    rospy.set_param('/thesis/next_node', self.next_node)
+                    shutdown()
+                    relaunch_move_base()
+
+                    rospy.loginfo('new destination launch!!!!!!')
+                    tts_service.say('new destination launch!')
+
+                    rospy.sleep(0.2)
+                    simple_move_base(self.sac, loc[self.next_node][0], loc[self.next_node][1], loc[self.next_node][2])
+
+                elif rospy.get_param('/thesis/reach', False):
+                    tts_service.say('I reach the goal.')
+                    self.cur_node = self.next_node
+                    self.cur_neighbor = self.adjacency_matrix[self.cur_node].astype(int)
+                    rospy.set_param('/thesis/pepper_location', self.cur_node)
+                    rospy.loginfo('Change cur_node to: {0}'.format(self.cur_node))
 
             else:
                 # Reach node
                 if len(self.instr_dest_dict[self.cur_node]) > 0:
                     simple_rotate(loc[self.cur_node][2] - get_cur_pos(pos_topic='/amcl_pose', t=0.5)[2])
-                    rospy.sleep(0.5)
+                    rospy.sleep(0.1)
 
-                    # add to eliminate amcl divergence
-                    # set_initial_pose(x=self.robot_x,
-                    #                  y=self.robot_y,
-                    #                  yaw=get_cur_pos(pos_topic='/amcl_pose', t=0.5)[2],
-                    #                  init_location=self.cur_node)
+                    # add to eliminate amcl divergence, only for office
+                    if self.cur_node == 0:
+                        set_initial_pose(x=self.robot_x,
+                                         y=self.robot_y,
+                                         yaw=get_cur_pos(pos_topic='/amcl_pose', t=0.5)[2],
+                                         init_location=self.cur_node)
                     # end: add to eliminate amcl divergence
 
                     # Create reward_dict = {'id (int)': 'reward (float)'}
@@ -206,13 +226,17 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                             reward_dict[self.instr_dict[idx].id] = self.instr_dict[idx].r
 
                     # Stop the move_base at first
-                    self.move_lock = True
                     shutdown()
+                    self.move_lock = True
+                    posture_service.goToPosture("StandInit", 0.5)
+                    rospy.set_param('/thesis/face_track', True)  # start face tracking
+
                     # Sort the instructions with the max reward
                     for r in sorted(reward_dict.items(), key=operator.itemgetter(1), reverse=True):
                         do_instr = self.instr_dict[r[0]]
                         rospy.loginfo('Do instr {0}: {1}'.format(do_instr.id, do_instr.function))
-                        rospy.sleep(do_instr.duration)
+                        # rospy.sleep(do_instr.duration)
+                        get_function(do_instr, self.sac)
 
                         # for experiment evaluation
                         self.cal_accu_reward(do_instr)  # calculate the accumulative reward
@@ -221,6 +245,8 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
                         del self.instr_dict[r[0]]
                         self.show_instr()
+
+                    rospy.set_param('/thesis/face_track', False)  # stop face tracking
 
                     # Reset the set when all the tasks in the instructions are done.
                     self.instr_dest_dict[self.cur_node].clear()
@@ -238,15 +264,15 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
                 else:
                     rospy.loginfo('No instructions on task {0}'.format(self.cur_node))
-                    rospy.sleep(2)
+                    rospy.sleep(1)
                     if len(self.instr_dict) > 0:
                         self.plan_task(self.instr_dict)
 
                     # save the accumulative reward, all
-                    elif self.save_csv_flag:
-                        self.save_done_instr_id()
-                        self.save_accu_reward()
-                        self.save_csv_flag = False
+                    # elif self.save_csv_flag:
+                    #     self.save_done_instr_id()
+                    #     self.save_accu_reward()
+                    #     self.save_csv_flag = False
                     # end
 
         return
@@ -285,7 +311,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
 
 if __name__ == '__main__':
-    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.DEBUG)
+    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
     tamp = TaskMotionPlannerDP()
     # tamp.run_plan_viz()  # this is for simulation
     tamp.run_plan()  # this is for real world application

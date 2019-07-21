@@ -178,7 +178,7 @@ def identify_single_human(img, joints, h_info, j_features, color_th=200.):
         rospy.logwarn("New to this person.")
 
     else:
-        rospy.loginfo('similar to {0}'.format(human_result.name))
+        rospy.loginfo('The person is {0}'.format(human_result.name))
 
     return human_result
 

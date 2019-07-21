@@ -5,21 +5,26 @@ import rospy
 import time
 import qi
 import os
-# import datetime
+import datetime
+import pickle
+from numpy.linalg import norm
+
 import subprocess
 from math import atan2, pi
-from numpy.linalg import norm
 
 import actionlib
 import dynamic_reconfigure.client
 import rosnode
 from actionlib import SimpleActionClient
+from sensor_msgs.msg import LaserScan
 from actionlib_msgs.msg import *
 from geometry_msgs.msg import PoseStamped, PoseWithCovarianceStamped, Twist
 from move_base_msgs.msg import MoveBaseAction, MoveBaseGoal
 from nav_msgs.srv import GetPlan
 from tf.transformations import euler_from_quaternion, quaternion_from_euler
-import pickle
+
+from perception.human_id import *
+from perception.action_recognition import *
 
 
 # Start move_base
@@ -33,14 +38,13 @@ get_global_path = rospy.ServiceProxy('/move_base/make_plan', GetPlan)
 
 cmd_vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=1)
 cancel_pub = rospy.Publisher('/move_base/cancel', GoalID, queue_size=1)
-# cancel_pub = rospy.Publisher('/move_base/cancel', GoalID, queue_size=1)
 
 goal_states = ['PENDING', 'ACTIVE', 'PREEMPTED',
                'SUCCEEDED', 'ABORTED', 'REJECTED',
                'PREEMPTING', 'RECALLING', 'RECALLED',
                'LOST']
 
-office_x, office_y, office_yaw = 2.045, -0.15, 2.45  # 0.716, -0.824, 1.927  # location: 0
+office_x, office_y, office_yaw = 2.045, -0.15, 2.69  # yaw2.45  # 0.716, -0.824, 1.927  # location: 0
 bedroom_x, bedroom_y, bedroom_yaw = 4.692, 0.329, 1.964  # 4.681, 0.271, 1.941  # 1
 charge_x, charge_y, charge_yaw = 4.487, -0.473, -2.693  # 5.024, -0.318, -2.935  # 2
 alley1_x, alley1_y, alley1_yaw = 3.827, -1.191, -1.164  # 3
@@ -48,7 +52,9 @@ alley2_x, alley2_y, alley2_yaw = 5.140, -3.713, 2.017  # 4
 living_x, living_y, living_yaw = 3.201, -5.051, 1.46  # 3.397, -5.461, 1.927  # 5
 dining_x, dining_y, dining_yaw = 6.172, -3.271, 1.496  # 6
 greet_x, greet_y, greet_yaw = 3.201, -5.051, -0.491  # 7, greeting for welcome
-emer_x, emer_y, emer_yaw = 5.065, -3.795, -1.195  # 8, emergency
+# emer_x, emer_y, emer_yaw = 5.065, -3.795, -1.195  # 8, emergency
+emer_x, emer_y, emer_yaw = 5.058, -4.036, -1.195  # 8, emergency
+
 
 loc_symbol = {0: 'office',
               1: 'bedroom',
@@ -70,12 +76,18 @@ loc = [[office_x, office_y, office_yaw],
        [greet_x, greet_y, greet_yaw],
        [emer_x, emer_y, emer_yaw]]
 
+# for function operation
+human_info_dir = rospkg.RosPack().get_path('thesis') + '/'
+human_dict = load_human_info2dict(human_info_dir)
+action_cat = get_action_cat()
+# end function operation
+
 # Naoqi setting
 if rospy.has_param("Pepper_ip"):
     pepper_ip = rospy.get_param("Pepper_ip")
 else:
     print 'Pepper_ip is not given'
-    pepper_ip = '192.168.0.152'
+    pepper_ip = '192.168.50.99'
 print 'Pepper_ip = ', pepper_ip
 
 session = qi.Session()
@@ -116,6 +128,115 @@ def remind_obj(in_obj):
             out_loc.append(key)
 
     return out_loc
+
+
+def get_function(instr, in_sac=None):
+    function_start_time = time.time()
+
+    if instr.function == 0:  # NOP
+        say_str = 'Hello ' + instr.target + ', what can I do for you?'
+        tts_service.say(say_str)
+
+    elif instr.function == 1:  # chat
+        if instr.status == 2 and instr.type == 0:  # negative emotion launched by human
+            tts_service.say('What happened?')  # encourage for break up
+            voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
+            if 'break' and 'up' in voice_msg.texts[0].split(' '):
+                asr_service.say('Cheer up! you deserve a better one.')
+                time.sleep(0.5)
+                tts_service.say('I will be with you whenever you are down.')
+                voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)
+                if 'Thank' or 'thank' or 'Thanks' in voice_msg.texts[0].split(' '):
+                    asr_service.say('No problem, my friend.')
+                    posture_service('StandInit', 0.6)
+
+        say_str = 'Greetings, ' + instr.target + 'how do you do?'
+        tts_service.say(say_str)
+        voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
+        human = identify_voice(human_dict['ip'], voice_msg)
+
+        if human is None:  # add new person into human_info
+            greeting_cb()
+
+        else:
+            # human say: Thank you for chatting with me
+            tts_service.say('Well, I am glad to help.')
+
+    elif instr.function == 2:  # remind object
+        obj_loc = remind_obj(instr.target)  # list of locations of given objects
+        if obj_loc is None:  # no locations founds
+            temp_str = 'I forget where ' + instr.target + 'is. I will find it later.'
+            tts_service.say(temp_str)
+            # TODO: add find object function
+
+    elif instr.function == 3:  # remind schedule
+        temp_str = 'Hello '+instr.target+', your friend is coming at three thirty.'
+        tts_service.say(temp_str)
+        time.sleep(3)
+        tts_service.say('No problem. Have fun then.')
+        # target_human = get_human_from_name(name_dict=human_dict['name'], name=instr.target)
+        # cur_weekday = datetime.datetime.today().weekday()
+        # cur_hour = datetime.datetime.now().hour
+        # # cur_min = datetime.datetime.now().minute
+        # sch_list = []
+        # for sch in target_human.schedules:
+        #     if sch.start_day < cur_weekday < sch.end_day and cur_hour < sch.start_hour:
+        #         sch_str = sch.activity + 'at ' + sch.start_hour + ', '
+        #         sch_list.append(sch_str)
+        #
+        # # formulate as sentence for robot
+        # temp_str = 'You need to '
+        # for i, sch_str in enumerate(sch_list):
+        #     if i == len(sch_list) - 1:
+        #         temp_str += 'and '
+        #     temp_str += sch_str
+
+    elif instr.function == 4:  # check human
+        rospy.set_param('/thesis/action_on', True)  # start and save action
+        time.sleep(5)
+        rospy.set_param('/thesis/action_on', False)  # stop
+
+    elif instr.function == 5:  # charge
+        tts_service.say('I need to charge, can anyone help me, please?')
+        time.sleep(60)  # wait to charge 10 seconds
+
+    elif instr.function == 6:  # play videos
+        tts_service.say('Would you like some music?')
+        tablet_service.playVideo("https://www.youtube.com/watch?v=lmNHeu7DB28")
+        time.sleep(instr.duration - (time.time() - function_start_time) - 0.5)
+
+    elif instr.function == 7:  # play games
+        tts_service.say('Let\'s play a game!')
+        time.sleep(instr.duration - (time.time() - function_start_time) - 0.5)
+
+    elif instr.function == 8:  # emergency
+        tts_service.say('I will call Alfred for help. Please wait for a second.')
+        rospy.sleep(0.25)
+        if in_sac is None:
+            _temp_sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)  # type: SimpleActionClient
+            simple_move_base(_temp_sac, emer_x, emer_y, emer_yaw)
+        else:
+            simple_move_base(in_sac, emer_x, emer_y, emer_yaw)
+
+        say_str = 'Alfred, ' + instr.target + 'may need your help. Please be hurry!'
+        asr_service.say(say_str)
+        rospy.sleep(1)
+        # simple_move_base(in_sac, loc[instr.destination][0], loc[instr.destination][1], loc[instr.destination][2])
+
+    elif instr.function == 9:  # report to source
+        target_human = get_human_from_name(name_dict=human_dict['name'], name=instr.target)
+        # temp_str = target_human.name + ' is ' + action_cat[target_human.action]
+        temp_str = 'Alex is working'
+        tts_service.say(temp_str)
+
+    # sleep until duration ends
+    if instr.function != 8:
+        if instr.duration - (time.time() - function_start_time) > 0.:
+            time.sleep(instr.duration - (time.time() - function_start_time))
+    else:
+        time.sleep(2)
+
+    return
 
 
 def change_local_costmap_radius(inflation_radius):
@@ -160,11 +281,11 @@ def relaunch_move_base():
     # noinspection PyBroadException
     try:
         subprocess.call('~/catkin_ws/src/thesis/scripts/motion/stop_move_base.sh', shell=True)
-        rospy.sleep(0.2)
+        rospy.sleep(0.5)
     except Exception:
         pass
     subprocess.call('~/catkin_ws/src/thesis/scripts/motion/start_move_base.sh', shell=True)
-    rospy.sleep(1.0)
+    rospy.sleep(0.5)
     return
 
 
@@ -180,11 +301,12 @@ def simple_rotate(delta_rad):
 
 
 def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_rotation_first=True, path_th=4):
-    rospy.loginfo('inflation_radius = {0}'.format(inflation_radius))
+    rospy.logdebug('inflation_radius = {0}'.format(inflation_radius))
+    rospy.loginfo('destination = {0} {1} {2}'.format(dest_x, dest_y, dest_yaw))
 
     # robot is static
     cur_x, cur_y, cur_yaw = get_cur_pos(pos_topic='amcl_pose', t=0.5)
-    rospy.loginfo('cur_x, cur_y, cur_yaw = {0} {1} {2}'.format(cur_x, cur_y, cur_yaw))
+    rospy.logdebug('cur_x, cur_y, cur_yaw = {0} {1} {2}'.format(cur_x, cur_y, cur_yaw))
     tan_yaw = atan2(dest_y-cur_y, dest_x-cur_x)
 
     if not isin_dest(cur_x, cur_y, cur_yaw, dest_x, dest_y, tan_yaw):
@@ -258,6 +380,14 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
 
                 if not within_time:
                     rospy.logwarn('Timed out achieving goal.')
+                    tts_service.say('Timed out achieving goal.')
+
+                    # error handling
+                    _scan_range = rospy.wait_for_message('/scan', LaserScan, timeout=0.5).ranges
+                    rospy.logwarn('current laser ranges: {0}'.format(_scan_range))
+                    obs_dir = cal_laser_range(_scan_range)
+                    move_recover(obs_dir)
+
                     shutdown()
                     relaunch_move_base()
                     simple_move_base(sac=sac, dest_x=dest_x, dest_y=dest_y, dest_yaw=dest_yaw,
@@ -267,25 +397,95 @@ def simple_move_base(sac, dest_x, dest_y, dest_yaw, inflation_radius=0.7, with_r
                     state = sac.get_state()
                     if state == GoalStatus.SUCCEEDED:
                         rospy.loginfo('Goal succeed!')
+                        rospy.set_param('/thesis/reach', True)
 
-                    else:
+                    elif state == GoalStatus.ABORTED:
                         rospy.logwarn('Goal failed with error code:' + str(goal_states[state]))
+                        # tts_service.say('Goal failed with error code')
+
+                        # error handling
+                        _scan_range = rospy.wait_for_message('/scan', LaserScan, timeout=0.5).ranges
+                        rospy.logwarn('current laser ranges: {0}'.format(_scan_range))
+                        obs_dir = cal_laser_range(_scan_range)
+                        move_recover(obs_dir)
+
                         shutdown()
                         relaunch_move_base()
-                        rospy.sleep(1)
-                        inflation_radius -= 0.2
+                        rospy.sleep(0.25)
+                        inflation_radius -= 0.1
                         simple_move_base(sac=sac, dest_x=dest_x, dest_y=dest_y, dest_yaw=dest_yaw,
                                          inflation_radius=inflation_radius, with_rotation_first=False, path_th=4)
-        else:
-            relaunch_move_base()
-            rospy.sleep(0.5)
+                    else:
+                        shutdown()
+                        relaunch_move_base()
 
+        # else:
+        #     relaunch_move_base()
+        #     rospy.sleep(0.5)
+
+    else:
+        rospy.set_param('/thesis/reach', True)
+
+    return
+
+
+def cal_laser_range(in_range):
+    front_scan = list()
+    left_scan = list()
+    right_scan = list()
+
+    obs_dict = {0: 'right', 1: 'front', 2: 'left'}
+
+    for i in range(10):
+        if 0.1 < in_range[i] < 1.5:
+            right_scan.append(in_range[i])
+        if 0.1 < in_range[i+25] < 1.5:
+            front_scan.append(in_range[i+25])
+        if 0.1 < in_range[i+50] < 1.5:
+            left_scan.append(in_range[i+25])
+
+    if len(right_scan) > 0:
+        right_val = np.mean(right_scan)
+    else:
+        right_val = 10
+
+    if len(front_scan) > 0:
+        front_val = np.mean(front_scan)
+    else:
+        front_val = 10
+
+    if len(left_scan) > 0:
+        left_val = np.mean(left_scan)
+    else:
+        left_val = 10
+
+    obs_dir = np.nanargmin(np.array([right_val, front_val, left_val]))
+    rospy.logwarn('Obstacle exists in {0}'.format(obs_dict[obs_dir]))
+
+    return obs_dir  # 0: right, 1: front, 2: left
+
+
+def move_recover(in_obs_dir, theta=np.pi/4.0):
+    rospy.logwarn('move_recover')
+    motion_service.moveTo(-0.1, 0, 0, 1)
+    if in_obs_dir == 0:  # right
+        tts_service.say('Turn left')
+        simple_rotate(theta)
+    elif in_obs_dir == 1:  # front
+        tts_service.say('Move back')
+        motion_service.moveTo(-0.25, 0, 0, 1)
+    elif in_obs_dir == 2:  # left
+        tts_service.say('Turn right')
+        simple_rotate(-theta)
+    rospy.sleep(0.1)
     return
 
 
 def shutdown():
     rospy.loginfo('Shutdown the robot ...')
-    cmd_vel_pub.publish(Twist())
+    for _ in range(4):
+        cmd_vel_pub.publish(Twist())
+    # subprocess.call('rostopic pub /move_base/cancel actionlib_msgs/GoalID -- {}', shell=True)
     cancel_pub.publish(GoalID())
     rospy.sleep(0.01)
 

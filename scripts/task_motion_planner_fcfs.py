@@ -25,8 +25,8 @@ class TaskMotionPlannerFCFS:
         # for TAMP
         self.map_graph = create_map_graph()
         self.adjacency_matrix = nx.convert_matrix.to_numpy_array(self.map_graph)
-        self.cur_node = rospy.get_param('/thesis/pepper_location', 2)  # initial at charge, type=int
-        self.next_node = rospy.get_param('/thesis/pepper_location', 2)  # initial at charge, type=int
+        self.cur_node = 2  # initial at charge, type=int
+        self.next_node = 2  # initial at charge, type=int
         self.time_step = rospy.get_param('/thesis/time_step', 1.0)
         self.sim_time_step = 2.0
         self.instr_dict = dict()

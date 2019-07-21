@@ -18,6 +18,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from perception import human_id
 import copy
 import pandas as pd
+from robot_motions import tts_service
 
 
 class InstructionConstructor:
@@ -47,7 +48,7 @@ class InstructionConstructor:
         trigger_words = [{'chat', 'talk'},  # chat, encourage
                          self.obj_set,  # remind object
                          {'schedule'},  # remind schedule
-                         {'status'},  # check human
+                         {'doing'},  # check human
                          {'music', 'song', 'video'},  # play music, video
                          {'game'},  # play game
                          self.symptoms]  # emergency
@@ -75,11 +76,11 @@ class InstructionConstructor:
         self.task_duration = range(1, 10)  # 1~9
 
         # scenario modeling
-        self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 5, 5: 8}  # {task_priority (emotion: 2, 3, 4): gamma}
+        self.gamma_dict = {1: 1, 2: 2, 3: 5, 4: 8, 5: 10}  # {task_priority (emotion: 2, 3, 4): gamma} (1,2,3,5,8)
         # self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5}  # {task_priority (emotion: 2, 3, 4): gamma}
         self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}  # {task_priority (emotion: 2, 3, 4): beta}
         self.task_priority = sorted(self.gamma_dict.keys())
-        self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 5, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}  # {function: time(sec)}
+        self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 15, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}  # {function: time(sec)}
 
     def instr_cb(self, in_instructions):
         rospy.logdebug('instruction callback')
@@ -149,17 +150,20 @@ class InstructionConstructor:
         emotion = check_emotion(self.analyser.polarity_scores(voice_data.texts[0])['compound'])
 
         # Check target of the instruction
-        instr_target = None
-        for w in words:
-            if w in self.human_dict['ip'].values():
-                instr_target = w
+        if instr_source == 'Alfred':
+            instr_target = 'Alex'
+        else:
+            instr_target = None
+            for w in words:
+                if w in self.human_dict['ip'].values():
+                    instr_target = w
 
-        if instr_target is None:
-            instr_target = instr_source
+            if instr_target is None:
+                instr_target = instr_source
 
         last_id_buf = copy.copy(self.last_id)
 
-        # Check function
+        # # Check function
         for w in words:
             for ver_i in self.verbal_instr:
                 if w in ver_i[0]:
@@ -172,7 +176,10 @@ class InstructionConstructor:
                         if ver_i[1][i] == 9:  # report to source
                             temp_des = self.human_dict['name'][instr_source].location
                         else:
-                            temp_des = self.human_dict['name'][instr_target].location
+                            if instr_source == 'Alfred':
+                                temp_des = 0
+                            else:
+                                temp_des = self.human_dict['name'][instr_target].location
 
                         temp_instr = Instruction(id=self.last_id,
                                                  r=self.gamma_dict[emotion+2],
@@ -190,21 +197,21 @@ class InstructionConstructor:
                         self.last_id += 1
                         self.instr_dict[temp_instr.id] = temp_instr
 
-        if last_id_buf == self.last_id:  # NOP for not detecting key words
-            temp_instr = Instruction(id=self.last_id,
-                                     r=self.gamma_dict[emotion+2],
-                                     b=self.b_dict[emotion+2],
-                                     type=0,
-                                     duration=self.dur_dict[0],
-                                     source=instr_source,
-                                     status=emotion,
-                                     function=0,
-                                     target=instr_target,
-                                     destination=self.human_dict['name'][instr_target].location,
-                                     prev_id=-1,
-                                     start_time=time.time())
-            self.last_id += 1
-            self.instr_dict[temp_instr.id] = temp_instr
+        # if last_id_buf == self.last_id:  # NOP for not detecting key words
+        #     temp_instr = Instruction(id=self.last_id,
+        #                              r=self.gamma_dict[emotion+2],
+        #                              b=self.b_dict[emotion+2],
+        #                              type=0,
+        #                              duration=self.dur_dict[0],
+        #                              source=instr_source,
+        #                              status=emotion,
+        #                              function=0,
+        #                              target=instr_target,
+        #                              destination=self.human_dict['name'][instr_target].location,
+        #                              prev_id=-1,
+        #                              start_time=time.time())
+        #     self.last_id += 1
+        #     self.instr_dict[temp_instr.id] = temp_instr
 
         self.launch_instr()
         return
@@ -324,17 +331,43 @@ class InstructionConstructor:
         return
 
     def run(self):
+        time.sleep(1)
+        tts_service.say('Oh, time to remind Bob his schedule.')
+        temp_init = Instruction(id=self.last_id, type=1, duration=5, source=None, status=2,
+                             r=self.gamma_dict[1], b=self.b_dict[1],
+                             function=3, target='Bob', destination=5, prev_id=-1, start_time=time.time())
+        self.instr_dict[self.last_id] = temp_init
+        self.last_id += 1
+
+        t = 1
+        rospy.loginfo('Sleep for {0} seconds'.format(str(t)))
+        rospy.sleep(t)
+
+        start_time = time.time()
+        rospy.set_param('/instr_start_time', start_time)
+        self.launch_instr()
+        rospy.sleep(t)
+
         while not rospy.is_shutdown():
             try:
                 self.show_instr()
             except rospy.ROSException:  # timeout
                 pass
             time.sleep(0.5)
+
+        # rospy.sleep(40)
+        # for i in range(2):
+        #     temp_i = Instruction(id=self.last_id, type=0, duration=60, source='Eric', status=0,
+        #                          r=self.gamma_dict[priority_list[i]], b=self.b_dict[priority_list[i]],
+        #                          function=0, target='Bob', destination=des_ls[i], prev_id=-1, start_time=time.time())
+        #     self.instr_dict[self.last_id] = temp_i
+        #     self.last_id += 1
+
         return
 
 
 if __name__ == '__main__':
-    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.DEBUG)
+    rospy.init_node(os.path.basename(__file__).split('.')[0], log_level=rospy.INFO)
     parser = argparse.ArgumentParser(description='Check roslaunch arg')
     parser.add_argument('--max_num', type=int, default=10)
     parser.add_argument('--is_rand', type=int, default=1)
