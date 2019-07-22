@@ -126,7 +126,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
 
             if rospy.get_param('/thesis/next_node', -1) != self.next_node:  # change the decision
                 shutdown()
-                relaunch_move_base()
+                # relaunch_move_base()
 
         self.move_lock = False
 
@@ -189,16 +189,15 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                 if rospy.get_param('/thesis/next_node', -1) != self.next_node:
                     rospy.set_param('/thesis/next_node', self.next_node)
                     shutdown()
-                    relaunch_move_base()
+                    # relaunch_move_base()
 
                     rospy.loginfo('new destination launch!!!!!!')
-                    tts_service.say('new destination launch!')
 
                     rospy.sleep(0.2)
                     simple_move_base(self.sac, loc[self.next_node][0], loc[self.next_node][1], loc[self.next_node][2])
 
                 elif rospy.get_param('/thesis/reach', False):
-                    tts_service.say('I reach the goal.')
+                    # tts_service.say('I reach the goal.')
                     self.cur_node = self.next_node
                     self.cur_neighbor = self.adjacency_matrix[self.cur_node].astype(int)
                     rospy.set_param('/thesis/pepper_location', self.cur_node)
@@ -229,7 +228,6 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                     shutdown()
                     self.move_lock = True
                     posture_service.goToPosture("StandInit", 0.5)
-                    rospy.set_param('/thesis/face_track', True)  # start face tracking
 
                     # Sort the instructions with the max reward
                     for r in sorted(reward_dict.items(), key=operator.itemgetter(1), reverse=True):
@@ -259,7 +257,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
                     self.task_pub.publish(undo_instr_list)
 
                     # Relaunch move_base
-                    relaunch_move_base()
+                    # relaunch_move_base()
                     self.move_lock = False
 
                 else:

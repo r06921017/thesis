@@ -26,6 +26,30 @@ import yaml
 import time
 import pickle
 
+# for demo
+# Naoqi setting
+if rospy.has_param("Pepper_ip"):
+    pepper_ip = rospy.get_param("Pepper_ip")
+else:
+    print 'Pepper_ip is not given'
+    pepper_ip = '192.168.0.184'
+print 'Pepper_ip = ', pepper_ip
+
+session = qi.Session()
+
+try:
+    session.connect("tcp://" + pepper_ip + ":" + str(9559))
+except RuntimeError:
+    print("tcp://" + pepper_ip + "\"on port" + str(9559) + ".")
+    print("Please check your script arguments. Run with -h option for help.")
+    sys.exit(1)
+
+tts_service = session.service('ALTextToSpeech')
+tts_service.setLanguage('English')
+asr_service = session.service("ALAnimatedSpeech")
+# End Naoqi setting
+# end for demo
+
 
 def get_ip(data):
     callerid = data._connection_header['callerid']  # type: 'str'
@@ -236,8 +260,11 @@ def show_color(colors):
 
 
 def greeting_cb():
+    rospy.set_param('/thesis/use_openpose', True)
+    rospy.sleep(0.1)
+
     # Get human name
-    tts_service.say('Hi, I am Pepper. Nice to meet you. What is your name?')
+    asr_service.say('Hi, I am Pepper. Nice to meet you. What is your name?')
     print 'What is your name?'
     voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
     print voice_msg
@@ -251,7 +278,7 @@ def greeting_cb():
     age_flag = True
     temp_age = 0
     while age_flag:
-        tts_service.say('How old are you?')
+        asr_service.say('How old are you?')
         voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
         print 'Receive from phone: ', voice_msg
         _age = voice_msg.texts[0].split(' ')[0]  # type: VoiceMessage
@@ -272,7 +299,7 @@ def greeting_cb():
         voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
         print 'Receive from phone: ', voice_msg
 
-        if voice_msg.texts[0].split(' ')[0] == 'man':
+        if voice_msg.texts[0].split(' ')[0] == 'man' or 'men':
             gen = 1
             break
         elif voice_msg.texts[0].split(' ')[0] == 'lady':
@@ -283,7 +310,7 @@ def greeting_cb():
 
     try:
         img_stitch = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching', Image, timeout=10), "bgr8")
-        human_pose = rospy.wait_for_message('/thesis/human_pose', Persons, timeout=10)
+        human_pose = rospy.wait_for_message('/thesis/human_pose', Persons, timeout=20)
 
     except rospy.exceptions.ROSException:
         return
@@ -319,8 +346,8 @@ def greeting_cb():
         update_human_info_dict(human)
 
         respond = 'I got it, nice to meet you ' + name
-        as_service.say(respond)
-
+        asr_service.say(respond)
+    rospy.set_param('/thesis/use_openpose', False)
     return
 
 
@@ -477,7 +504,7 @@ if __name__ == '__main__':
     joints_features = [1, 2, 5]
     cv_bridge = CvBridge()
 
-    is_eval = True
+    is_eval = False
     if is_eval:
         rospy.loginfo('Evaluation ...')
         greeting_eval()
@@ -502,7 +529,7 @@ if __name__ == '__main__':
 
         tts_service = session.service('ALTextToSpeech')
         tts_service.setLanguage('English')
-        as_service = session.service("ALAnimatedSpeech")
+        asr_service = session.service("ALAnimatedSpeech")
         # End Naoqi setting
 
         rospy.loginfo('human_id start!')

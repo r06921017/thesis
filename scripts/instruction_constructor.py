@@ -51,7 +51,8 @@ class InstructionConstructor:
                          {'doing'},  # check human
                          {'music', 'song', 'video'},  # play music, video
                          {'game'},  # play game
-                         self.symptoms]  # emergency
+                         self.symptoms,  # emergency
+                         {'guest', 'guests'}]  # guests
 
         trigger_instr = [[1],
                          [2],
@@ -59,7 +60,8 @@ class InstructionConstructor:
                          [4, 9],
                          [6],
                          [7],
-                         [8]]
+                         [8],
+                         [10]]
 
         self.verbal_instr = zip(trigger_words, trigger_instr)
         del trigger_words
@@ -80,7 +82,7 @@ class InstructionConstructor:
         # self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5}  # {task_priority (emotion: 2, 3, 4): gamma}
         self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}  # {task_priority (emotion: 2, 3, 4): beta}
         self.task_priority = sorted(self.gamma_dict.keys())
-        self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 15, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10}  # {function: time(sec)}
+        self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 15, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10, 10: 60}  # {function: time(sec)}
 
     def instr_cb(self, in_instructions):
         rospy.logdebug('instruction callback')
@@ -175,6 +177,8 @@ class InstructionConstructor:
 
                         if ver_i[1][i] == 9:  # report to source
                             temp_des = self.human_dict['name'][instr_source].location
+                        elif ver_i[1][i] == 10:  # welcome guest
+                            temp_des = 7
                         else:
                             if instr_source == 'Alfred':
                                 temp_des = 0
@@ -194,8 +198,8 @@ class InstructionConstructor:
                                                  start_time=time.time(),
                                                  prev_id=self.last_id-1 if i > 0 else -1)
 
-                        self.last_id += 1
                         self.instr_dict[temp_instr.id] = temp_instr
+                        self.last_id += 1
 
         # if last_id_buf == self.last_id:  # NOP for not detecting key words
         #     temp_instr = Instruction(id=self.last_id,
@@ -213,7 +217,9 @@ class InstructionConstructor:
         #     self.last_id += 1
         #     self.instr_dict[temp_instr.id] = temp_instr
 
-        self.launch_instr()
+        if len(self.instr_dict) > 0:
+            tts_service.say('Ok, I am coming')
+            self.launch_instr()
         return
 
     def launch_instr(self):
@@ -331,22 +337,22 @@ class InstructionConstructor:
         return
 
     def run(self):
-        time.sleep(1)
-        tts_service.say('Oh, time to remind Bob his schedule.')
-        temp_init = Instruction(id=self.last_id, type=1, duration=5, source=None, status=2,
-                             r=self.gamma_dict[1], b=self.b_dict[1],
-                             function=3, target='Bob', destination=5, prev_id=-1, start_time=time.time())
-        self.instr_dict[self.last_id] = temp_init
-        self.last_id += 1
-
-        t = 1
-        rospy.loginfo('Sleep for {0} seconds'.format(str(t)))
-        rospy.sleep(t)
-
-        start_time = time.time()
-        rospy.set_param('/instr_start_time', start_time)
-        self.launch_instr()
-        rospy.sleep(t)
+        # time.sleep(5)
+        # tts_service.say('Oh, time to remind Bob his schedule.')
+        # temp_init = Instruction(id=self.last_id, type=1, duration=5, source=None, status=2,
+        #                      r=self.gamma_dict[1], b=self.b_dict[1],
+        #                      function=3, target='Bob', destination=5, prev_id=-1, start_time=time.time())
+        # self.instr_dict[self.last_id] = temp_init
+        # self.last_id += 1
+        #
+        # t = 1
+        # rospy.loginfo('Sleep for {0} seconds'.format(str(t)))
+        # rospy.sleep(t)
+        #
+        # start_time = time.time()
+        # rospy.set_param('/instr_start_time', start_time)
+        # self.launch_instr()
+        # rospy.sleep(t)
 
         while not rospy.is_shutdown():
             try:

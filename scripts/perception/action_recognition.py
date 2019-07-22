@@ -184,6 +184,10 @@ def person_callback(data):
 
     if rospy.get_param('/thesis/action_on', False):
         try:
+            if not rospy.get_param('/thesis/use_openpose', False):
+                rospy.set_param('/thesis/use_openpose', True)
+                rospy.sleep(0.1)
+
             _img = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message(image_topic, Image, timeout=10), "bgr8")
 
         except rospy.exceptions.ROSException:
@@ -219,11 +223,11 @@ def person_callback(data):
     return
 
 
-def get_action_cat():
+def get_action_cat(in_config_dir=rospkg.RosPack().get_path('thesis') + '/config/'):
     if rospy.has_param('action_cat'):
         return rospy.get_param('action_cat')
     else:
-        h_acts = pd.read_csv(config_dir + 'hand_actions.csv', sep=',')  # DataFrame
+        h_acts = pd.read_csv(in_config_dir + 'hand_actions.csv', sep=',')  # DataFrame
         rospy.set_param('action_cat', h_acts.columns.to_list())
         return h_acts.columns.to_list()
 
