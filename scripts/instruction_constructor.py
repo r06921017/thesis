@@ -146,80 +146,81 @@ class InstructionConstructor:
                 rospy.logerr('Invalid sentiment.')
                 exit(1)
 
-        words = voice_data.texts[0].split()
+        if not rospy.get_param('/thesis/is_greeting', False):
+            words = voice_data.texts[0].split()
 
-        instr_source = human_id.identify_voice(self.human_dict['ip'], voice_data)
-        emotion = check_emotion(self.analyser.polarity_scores(voice_data.texts[0])['compound'])
+            instr_source = human_id.identify_voice(self.human_dict['ip'], voice_data)
+            emotion = check_emotion(self.analyser.polarity_scores(voice_data.texts[0])['compound'])
 
-        # Check target of the instruction
-        if instr_source == 'Alfred':
-            instr_target = 'Alex'
-        else:
-            instr_target = None
+            # Check target of the instruction
+            if instr_source == 'Alfred':
+                instr_target = 'Alex'
+            else:
+                instr_target = None
+                for w in words:
+                    if w in self.human_dict['ip'].values():
+                        instr_target = w
+
+                if instr_target is None:
+                    instr_target = instr_source
+
+            last_id_buf = copy.copy(self.last_id)
+
+            # # Check function
             for w in words:
-                if w in self.human_dict['ip'].values():
-                    instr_target = w
+                for ver_i in self.verbal_instr:
+                    if w in ver_i[0]:
+                        print ver_i[1]
 
-            if instr_target is None:
-                instr_target = instr_source
+                        for i in range(len(ver_i[1])):
+                            if ver_i[1][i] == 8:  # physical request
+                                emotion = 3
 
-        last_id_buf = copy.copy(self.last_id)
-
-        # # Check function
-        for w in words:
-            for ver_i in self.verbal_instr:
-                if w in ver_i[0]:
-                    print ver_i[1]
-
-                    for i in range(len(ver_i[1])):
-                        if ver_i[1][i] == 8:  # physical request
-                            emotion = 3
-
-                        if ver_i[1][i] == 9:  # report to source
-                            temp_des = self.human_dict['name'][instr_source].location
-                        elif ver_i[1][i] == 10:  # welcome guest
-                            temp_des = 7
-                        else:
-                            if instr_source == 'Alfred':
-                                temp_des = 0
+                            if ver_i[1][i] == 9:  # report to source
+                                temp_des = self.human_dict['name'][instr_source].location
+                            elif ver_i[1][i] == 10:  # welcome guest
+                                temp_des = 7
                             else:
-                                temp_des = self.human_dict['name'][instr_target].location
+                                if instr_source == 'Alfred':
+                                    temp_des = 0
+                                else:
+                                    temp_des = self.human_dict['name'][instr_target].location
 
-                        temp_instr = Instruction(id=self.last_id,
-                                                 r=self.gamma_dict[emotion+2],
-                                                 b=self.b_dict[emotion+2],
-                                                 type=0,
-                                                 duration=self.dur_dict[ver_i[1][i]],
-                                                 source=instr_source,
-                                                 status=emotion,
-                                                 function=ver_i[1][i],
-                                                 target=instr_target,
-                                                 destination=temp_des,
-                                                 start_time=time.time(),
-                                                 prev_id=self.last_id-1 if i > 0 else -1)
+                            temp_instr = Instruction(id=self.last_id,
+                                                     r=self.gamma_dict[emotion+2],
+                                                     b=self.b_dict[emotion+2],
+                                                     type=0,
+                                                     duration=self.dur_dict[ver_i[1][i]],
+                                                     source=instr_source,
+                                                     status=emotion,
+                                                     function=ver_i[1][i],
+                                                     target=instr_target,
+                                                     destination=temp_des,
+                                                     start_time=time.time(),
+                                                     prev_id=self.last_id-1 if i > 0 else -1)
 
-                        self.instr_dict[temp_instr.id] = temp_instr
-                        self.last_id += 1
+                            self.instr_dict[temp_instr.id] = temp_instr
+                            self.last_id += 1
 
-        # if last_id_buf == self.last_id:  # NOP for not detecting key words
-        #     temp_instr = Instruction(id=self.last_id,
-        #                              r=self.gamma_dict[emotion+2],
-        #                              b=self.b_dict[emotion+2],
-        #                              type=0,
-        #                              duration=self.dur_dict[0],
-        #                              source=instr_source,
-        #                              status=emotion,
-        #                              function=0,
-        #                              target=instr_target,
-        #                              destination=self.human_dict['name'][instr_target].location,
-        #                              prev_id=-1,
-        #                              start_time=time.time())
-        #     self.last_id += 1
-        #     self.instr_dict[temp_instr.id] = temp_instr
+            # if last_id_buf == self.last_id:  # NOP for not detecting key words
+            #     temp_instr = Instruction(id=self.last_id,
+            #                              r=self.gamma_dict[emotion+2],
+            #                              b=self.b_dict[emotion+2],
+            #                              type=0,
+            #                              duration=self.dur_dict[0],
+            #                              source=instr_source,
+            #                              status=emotion,
+            #                              function=0,
+            #                              target=instr_target,
+            #                              destination=self.human_dict['name'][instr_target].location,
+            #                              prev_id=-1,
+            #                              start_time=time.time())
+            #     self.last_id += 1
+            #     self.instr_dict[temp_instr.id] = temp_instr
 
-        if len(self.instr_dict) > 0:
-            tts_service.say('Ok, I am coming')
-            self.launch_instr()
+            if len(self.instr_dict) > 0:
+                tts_service.say('Ok, I got it.')
+                self.launch_instr()
         return
 
     def launch_instr(self):
@@ -337,7 +338,7 @@ class InstructionConstructor:
         return
 
     def run(self):
-        # time.sleep(5)
+        # time.sleep(3)
         # tts_service.say('Oh, time to remind Bob his schedule.')
         # temp_init = Instruction(id=self.last_id, type=1, duration=5, source=None, status=2,
         #                      r=self.gamma_dict[1], b=self.b_dict[1],

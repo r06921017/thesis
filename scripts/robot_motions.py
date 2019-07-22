@@ -3,7 +3,6 @@
 
 import subprocess
 from math import atan2, pi
-
 import actionlib
 import dynamic_reconfigure.client
 import rosnode
@@ -72,6 +71,7 @@ loc = [[office_x, office_y, office_yaw],
 human_info_dir = rospkg.RosPack().get_path('thesis') + '/'
 human_dict = load_human_info2dict(human_info_dir)
 action_cat = get_action_cat()
+cv_bridge = CvBridge()
 # end function operation
 
 # Naoqi setting
@@ -205,6 +205,8 @@ def get_function(instr, in_sac=None):
         time.sleep(instr.duration - (time.time() - function_start_time) - 0.5)
 
     elif instr.function == 8:  # emergency
+        tts_service.say(instr.source+', are you Okay? What is going on?')
+        rospy.sleep(3.5)
         asr_service.say('I will call Alfred for help. Please wait for a second.')
         rospy.sleep(0.25)
         if in_sac is None:
@@ -213,7 +215,7 @@ def get_function(instr, in_sac=None):
         else:
             simple_move_base(in_sac, emer_x, emer_y, emer_yaw)
 
-        say_str = 'Alfred, Eric may need your help. Please come to the bedroom as soon as possible.'
+        say_str = 'Alfred, ' + instr.source + 'may need your help. Please come to the bedroom as soon as possible.'
         asr_service.say(say_str)
         rospy.sleep(1)
         # simple_move_base(in_sac, loc[instr.destination][0], loc[instr.destination][1], loc[instr.destination][2])
@@ -537,8 +539,8 @@ def run_movebase(sac, x, y, yaw):
 
 
 def isin_dest(rx, ry, ryaw, des_x, des_y, des_yaw):
-    dist_th = 0.3  # 0.4
-    angle_th = 0.15  # 0.3
+    dist_th = 0.6  # 0.3
+    angle_th = 0.5  # 0.15
     if norm([rx - des_x, ry - des_y]) < dist_th and abs(float(ryaw - des_yaw)) < angle_th:
         rospy.loginfo('is in destination')
         return True

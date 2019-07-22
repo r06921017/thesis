@@ -24,9 +24,7 @@ class TaskMotionPlannerDP(TaskMotionPlannerFCFS):
         self.sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)  # type: SimpleActionClient
         self.move_lock = False
         self.dis_unit = 0.15
-
-        rospy.set_param('/thesis/face_track', False)
-        rospy.set_param('/thesis/next_node', -1)
+        relaunch_move_base()
 
         self.amcl_sub = rospy.Subscriber('/amcl_pose', PoseWithCovarianceStamped, self.pos_cb)
         # self.motion_sub = rospy.Subscriber('/thesis/next_node', Int32, self.nav_cb, queue_size=5)

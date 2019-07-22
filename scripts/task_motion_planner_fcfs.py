@@ -26,11 +26,19 @@ class TaskMotionPlannerFCFS:
         self.map_graph = create_map_graph()
         self.adjacency_matrix = nx.convert_matrix.to_numpy_array(self.map_graph)
         self.cur_node = 2  # initial at charge, type=int
-        self.next_node = 2  # initial at charge, type=int
+        self.next_node = self.cur_node  # initial at charge, type=int
         self.time_step = rospy.get_param('/thesis/time_step', 1.0)
         self.sim_time_step = 2.0
         self.instr_dict = dict()
         self.instr_dest_dict = {n: set() for n in self.map_graph.nodes}
+
+        # reset everything for demo
+        rospy.set_param('/thesis/face_track', False)
+        rospy.set_param('/thesis/use_openpose', False)
+        rospy.set_param('/thesis/action_on', False)
+        rospy.set_param('/thesis/next_node', -1)
+        rospy.set_param('/thesis/is_greeting', False)
+        # end
 
         # for visualization, including nodes and edges
         self.viz_node_pub = rospy.Publisher('/thesis/robot_node', String, queue_size=2)

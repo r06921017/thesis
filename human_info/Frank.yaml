@@ -1,0 +1,14 @@
+action: 14
+age: 0
+gender: true
+ip: 192.168.50.999
+location: 0
+name: Alex
+schedules:
+  ScheduleArray: []
+shirt_color:
+- [142, 138, 175]
+- [74, 63, 255]
+- [92, 75, 255]
+x: 0.0
+y: 0.0

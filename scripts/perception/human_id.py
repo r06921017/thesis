@@ -259,7 +259,8 @@ def show_color(colors):
     return
 
 
-def greeting_cb():
+def greeting_cb(in_part_num=18):
+    rospy.set_param('/thesis/is_greeting', True)
     rospy.set_param('/thesis/use_openpose', True)
     rospy.sleep(0.1)
 
@@ -295,30 +296,32 @@ def greeting_cb():
 
     # Get the gender of human
     while True:
-        tts_service.say('Are you man or lady?')
+        tts_service.say('Are you a man, or lady?')
         voice_msg = rospy.wait_for_message('/Tablet/voice', VoiceMessage)  # type: VoiceMessage
         print 'Receive from phone: ', voice_msg
 
         if voice_msg.texts[0].split(' ')[0] == 'man' or 'men':
-            gen = 1
+            gen = True
             break
         elif voice_msg.texts[0].split(' ')[0] == 'lady':
-            gen = 0
+            gen = False
             break
         else:
             tts_service.say('Sorry, please try again.')
 
     try:
-        img_stitch = cv_bridge.imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching', Image, timeout=10), "bgr8")
+        img_stitch = CvBridge().imgmsg_to_cv2(rospy.wait_for_message('/thesis/img_stitching',
+                                                                     Image,
+                                                                     timeout=10), "bgr8")
         human_pose = rospy.wait_for_message('/thesis/human_pose', Persons, timeout=20)
 
     except rospy.exceptions.ROSException:
         return
 
     max_dis = 0
-    max_joints = np.ones((part_num, 2), dtype=np.int) * -1
+    max_joints = np.ones((in_part_num, 2), dtype=np.int) * -1
     for idx, person in enumerate(human_pose.persons):
-        joints = np.ones((part_num, 2), dtype=np.int) * -1
+        joints = np.ones((in_part_num, 2), dtype=np.int) * -1
         for i in range(len(human_pose.persons[idx].body_part)):
             part = human_pose.persons[idx].body_part[i]
             # Transform the joint points back to the position on the image
@@ -336,7 +339,8 @@ def greeting_cb():
 
     else:
         # Show picked joint
-        colors = get_joint_color(img_stitch, max_joints, joints_features)
+        in_joints_features = [1, 2, 5]
+        colors = get_joint_color(img_stitch, max_joints, in_joints_features)
         show_color(colors)
 
         # Create Human message and store in yaml format
@@ -347,7 +351,9 @@ def greeting_cb():
 
         respond = 'I got it, nice to meet you ' + name
         asr_service.say(respond)
+    # reset parameters
     rospy.set_param('/thesis/use_openpose', False)
+    rospy.set_param('/thesis/is_greeting', False)
     return
 
 
