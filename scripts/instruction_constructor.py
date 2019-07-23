@@ -78,8 +78,8 @@ class InstructionConstructor:
         self.task_duration = range(1, 10)  # 1~9
 
         # scenario modeling
-        self.gamma_dict = {1: 1, 2: 2, 3: 5, 4: 8, 5: 10}  # {task_priority (emotion: 2, 3, 4): gamma} (1,2,3,5,8)
-        # self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 4, 5: 5}  # {task_priority (emotion: 2, 3, 4): gamma}
+        # self.gamma_dict = {1: 1, 2: 2, 3: 5, 4: 8, 5: 10}  # {task_priority (emotion: 2, 3, 4): gamma}
+        self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 5, 5: 8}  # {task_priority (emotion: 2, 3, 4): gamma}
         self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}  # {task_priority (emotion: 2, 3, 4): beta}
         self.task_priority = sorted(self.gamma_dict.keys())
         self.dur_dict = {0: 3, 1: 5, 2: 8, 3: 8, 4: 15, 5: 10, 6: 15, 7: 30, 8: 60, 9: 10, 10: 60}  # {function: time(sec)}
@@ -338,22 +338,22 @@ class InstructionConstructor:
         return
 
     def run(self):
-        # time.sleep(3)
-        # tts_service.say('Oh, time to remind Bob his schedule.')
-        # temp_init = Instruction(id=self.last_id, type=1, duration=5, source=None, status=2,
-        #                      r=self.gamma_dict[1], b=self.b_dict[1],
-        #                      function=3, target='Bob', destination=5, prev_id=-1, start_time=time.time())
-        # self.instr_dict[self.last_id] = temp_init
-        # self.last_id += 1
-        #
-        # t = 1
-        # rospy.loginfo('Sleep for {0} seconds'.format(str(t)))
-        # rospy.sleep(t)
-        #
-        # start_time = time.time()
-        # rospy.set_param('/instr_start_time', start_time)
-        # self.launch_instr()
-        # rospy.sleep(t)
+        time.sleep(3)
+        tts_service.say('Oh, time to remind Bob his schedule.')
+        temp_init = Instruction(id=self.last_id, type=1, duration=5, source=None, status=2,
+                             r=self.gamma_dict[1], b=self.b_dict[1],
+                             function=3, target='Bob', destination=5, prev_id=-1, start_time=time.time())
+        self.instr_dict[self.last_id] = temp_init
+        self.last_id += 1
+
+        t = 1
+        rospy.loginfo('Sleep for {0} seconds'.format(str(t)))
+        rospy.sleep(t)
+
+        start_time = time.time()
+        rospy.set_param('/instr_start_time', start_time)
+        self.launch_instr()
+        rospy.sleep(t)
 
         while not rospy.is_shutdown():
             try:

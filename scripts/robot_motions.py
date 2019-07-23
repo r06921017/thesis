@@ -44,7 +44,7 @@ living_x, living_y, living_yaw = 3.201, -5.051, 1.46  # 3.397, -5.461, 1.927  # 
 dining_x, dining_y, dining_yaw = 6.172, -3.271, 1.496  # 6
 greet_x, greet_y, greet_yaw = 3.201, -5.051, -0.491  # 7, greeting for welcome
 # emer_x, emer_y, emer_yaw = 5.065, -3.795, -1.195  # 8, emergency
-emer_x, emer_y, emer_yaw = 5.058, -4.036, -1.195  # 8, emergency
+emer_x, emer_y, emer_yaw = 5.058, -4.036, -1.2  # 8, emergency  -1.195
 
 
 loc_symbol = {0: 'office',
@@ -208,6 +208,7 @@ def get_function(instr, in_sac=None):
         tts_service.say(instr.source+', are you Okay? What is going on?')
         rospy.sleep(3.5)
         asr_service.say('I will call Alfred for help. Please wait for a second.')
+        rospy.set_param('/thesis/face_track', False)
         rospy.sleep(0.25)
         if in_sac is None:
             _temp_sac = actionlib.SimpleActionClient('move_base', MoveBaseAction)  # type: SimpleActionClient
@@ -539,8 +540,8 @@ def run_movebase(sac, x, y, yaw):
 
 
 def isin_dest(rx, ry, ryaw, des_x, des_y, des_yaw):
-    dist_th = 0.6  # 0.3
-    angle_th = 0.5  # 0.15
+    dist_th = 0.3  # 0.3
+    angle_th = 0.2  # 0.15
     if norm([rx - des_x, ry - des_y]) < dist_th and abs(float(ryaw - des_yaw)) < angle_th:
         rospy.loginfo('is in destination')
         return True
