@@ -13,8 +13,8 @@
     <rosparam file="$(find thesis)/param/pepper_planner.yaml" command="load"/>
 
     <!-- observation sources located in costmap_common.yaml -->
-    <rosparam file="$(find thesis)/param/costmap_common.yaml" command="load" ns="global_costmap" />
-    <rosparam file="$(find thesis)/param/costmap_common.yaml" command="load" ns="local_costmap" />
+    <rosparam file="$(find thesis)/param/costmap_common_global.yaml" command="load" ns="global_costmap" />
+    <rosparam file="$(find thesis)/param/costmap_common_local.yaml" command="load" ns="local_costmap" />
 
     <!-- local costmap, needs size -->
     <rosparam file="$(find thesis)/param/costmap_local.yaml" command="load" ns="local_costmap" />

@@ -1,0 +1,14 @@
+action: 0
+age: 0
+gender: false
+ip: 192.168.50.155
+location: 7
+name: Dexter
+schedules:
+  ScheduleArray: []
+shirt_color:
+- [82, 39, 255]
+- [92, 49, 254]
+- [47, 11, 211]
+x: 0.0
+y: 0.0
