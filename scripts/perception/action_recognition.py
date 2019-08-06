@@ -143,7 +143,7 @@ def get_action(hand_obj_list, eye_obj_list, hand_eye):
     """
     whand = 1.0
     weye = 1.2
-    whe = 0.0  # 0
+    whe = 1.0  # 0
     p_acts_hand = np.zeros(action_num, np.float)  # shape = (action_num,)
     p_acts_eye = np.zeros(action_num, np.float)  # shape = (action_num,)
 

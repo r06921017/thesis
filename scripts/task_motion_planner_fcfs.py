@@ -38,6 +38,7 @@ class TaskMotionPlannerFCFS:
         rospy.set_param('/thesis/action_on', False)
         rospy.set_param('/thesis/next_node', -1)
         rospy.set_param('/thesis/is_greeting', False)
+        rospy.set_param('/thesis/reach', False)
         # end
 
         # for visualization, including nodes and edges
