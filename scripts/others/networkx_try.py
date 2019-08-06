@@ -124,7 +124,10 @@ if __name__ == '__main__':
 
     # draw value graph
     nx.draw(node_graph, pos_node_graph, with_labels=False, node_size=size_list, node_color=color_list)
-    # value_labels = nx.get_node_attributes(node_graph, 'value')
-    # nx.draw_networkx_labels(node_graph, pos_node_graph, labels=value_labels)
-    plt.savefig(pkg_dir + '/config/value_graph.png')
+    print 'pos_node_graph', pos_node_graph
+    value_labels = nx.get_node_attributes(node_graph, 'value')
+    print 'value_labels', value_labels
+    nx.draw_networkx_labels(node_graph, pos_node_graph, labels=value_labels)
+    # plt.savefig(pkg_dir + '/config/value_graph.png')
+    plt.savefig('/home/robot/value_graph.png')
     plt.clf()

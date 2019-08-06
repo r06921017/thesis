@@ -52,7 +52,8 @@ class InstructionConstructor:
                          {'music', 'song', 'video'},  # play music, video
                          {'game'},  # play game
                          self.symptoms,  # emergency
-                         {'guest', 'guests'}]  # guests
+                         {'guest', 'guests'},  # guests
+                         {'charge', 'charger'}]  # guests
 
         trigger_instr = [[1],
                          [2],
@@ -61,7 +62,8 @@ class InstructionConstructor:
                          [6],
                          [7],
                          [8],
-                         [10]]
+                         [10],
+                         [5]]
 
         self.verbal_instr = zip(trigger_words, trigger_instr)
         del trigger_words
@@ -79,6 +81,7 @@ class InstructionConstructor:
 
         # scenario modeling
         # self.gamma_dict = {1: 1, 2: 2, 3: 5, 4: 8, 5: 10}  # {task_priority (emotion: 2, 3, 4): gamma}
+        # self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 5, 5: 8}  # {task_priority (emotion: 2, 3, 4): gamma} to node 8
         self.gamma_dict = {1: 1, 2: 2, 3: 3, 4: 5, 5: 8}  # {task_priority (emotion: 2, 3, 4): gamma}
         self.b_dict = {1: 0.9, 2: 0.92, 3: 0.94, 4: 0.96, 5: 0.98}  # {task_priority (emotion: 2, 3, 4): beta}
         self.task_priority = sorted(self.gamma_dict.keys())
@@ -166,7 +169,7 @@ class InstructionConstructor:
 
             last_id_buf = copy.copy(self.last_id)
 
-            # # Check function
+            # Check function
             for w in words:
                 for ver_i in self.verbal_instr:
                     if w in ver_i[0]:
@@ -180,11 +183,15 @@ class InstructionConstructor:
                                 temp_des = self.human_dict['name'][instr_source].location
                             elif ver_i[1][i] == 10:  # welcome guest
                                 temp_des = 7
+                            elif ver_i[1][i] == 5:
+                                temp_des = 2
                             else:
-                                if instr_source == 'Alfred':
-                                    temp_des = 0
-                                else:
-                                    temp_des = self.human_dict['name'][instr_target].location
+                                temp_des = self.human_dict['name'][instr_target].location
+
+                                # if instr_source == 'Alfred':
+                                #     temp_des = 8
+                                # else:
+                                #     temp_des = self.human_dict['name'][instr_target].location
 
                             temp_instr = Instruction(id=self.last_id,
                                                      r=self.gamma_dict[emotion+2],
@@ -201,7 +208,6 @@ class InstructionConstructor:
 
                             self.instr_dict[temp_instr.id] = temp_instr
                             self.last_id += 1
-
             # if last_id_buf == self.last_id:  # NOP for not detecting key words
             #     temp_instr = Instruction(id=self.last_id,
             #                              r=self.gamma_dict[emotion+2],

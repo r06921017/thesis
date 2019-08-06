@@ -44,7 +44,8 @@ living_x, living_y, living_yaw = 3.201, -5.051, 1.46  # 3.397, -5.461, 1.927  # 
 dining_x, dining_y, dining_yaw = 6.172, -3.271, 1.496  # 6
 greet_x, greet_y, greet_yaw = 3.201, -5.051, -0.491  # 7, greeting for welcome
 # emer_x, emer_y, emer_yaw = 5.065, -3.795, -1.195  # 8, emergency
-emer_x, emer_y, emer_yaw = 5.058, -4.036, -1.2  # 8, emergency  -1.195
+# emer_x, emer_y, emer_yaw = 5.058, -4.036, -1.2  # 8, emergency  -1.195 # tune backward
+emer_x, emer_y, emer_yaw = 4.950, -4.231, -1.140
 
 
 loc_symbol = {0: 'office',
@@ -166,7 +167,7 @@ def get_function(instr, in_sac=None):
         temp_str = 'Hello '+instr.target+', your friend is coming at three thirty.'
         tts_service.say(temp_str)
         time.sleep(3)
-        asr_service.say('No problem. Have fun then.')
+        # asr_service.say('No problem. Have fun then.')
         # target_human = get_human_from_name(name_dict=human_dict['name'], name=instr.target)
         # cur_weekday = datetime.datetime.today().weekday()
         # cur_hour = datetime.datetime.now().hour
