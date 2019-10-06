@@ -16,7 +16,7 @@ if __name__ == '__main__':
     parser.add_argument('--seed', type=int, default=1000)
     args = parser.parse_args(rospy.myargv()[1:])
 
-    _exp_dir = rospkg.RosPack().get_path('thesis')+'/exp2/instr_'+str(args.max_num)+'_'+str(args.seed)+'_good/'
+    _exp_dir = rospkg.RosPack().get_path('thesis')+'/exp2/instr_'+str(args.max_num)+'_'+str(args.seed)+'_backup/'
     temp_df = pd.read_csv(_exp_dir + 'task_motion_planner_fcfs_sim_reward.csv')
     fcfs_time = (2*temp_df['time']).tolist()
     fcfs_reward = temp_df['reward'].tolist()
@@ -45,10 +45,10 @@ if __name__ == '__main__':
     opt_real_time = (2*temp_df['time']).tolist()
     opt_real_reward = temp_df['reward'].tolist()
 
-    _exp_dir2 = rospkg.RosPack().get_path('thesis')+'/exp2/instr_'+str(args.max_num)+'_'+str(args.seed)+'/'
-    temp_df = pd.read_csv(_exp_dir2 + 'task_motion_planner_dp_reward.csv')
-    dp_real_time = (2 * temp_df['time']).tolist()
-    dp_real_reward = temp_df['reward'].tolist()
+    # _exp_dir2 = rospkg.RosPack().get_path('thesis')+'/exp2/instr_'+str(args.max_num)+'_'+str(args.seed)+'/'
+    # temp_df = pd.read_csv(_exp_dir2 + 'task_motion_planner_dp_reward.csv')
+    # dp_real_time = (2 * temp_df['time']).tolist()
+    # dp_real_reward = temp_df['reward'].tolist()
 
     f = plt.figure(num=None, figsize=(14, 9), dpi=80, facecolor='w', edgecolor='k')
     ax = f.add_subplot(111)
@@ -68,8 +68,8 @@ if __name__ == '__main__':
     plt.plot(pf_time, pf_reward, linewidth=lw, color='green', marker='P', ms=14, label='PF', zorder=4)
     plt.plot(sf_time, sf_reward, linewidth=lw, color='orange', marker='X', ms=14, label='SF', zorder=6)
     plt.plot(dp_time, dp_reward, linewidth=lw, color='red', marker='s', ms=14, label='Ours', zorder=5)
-    plt.plot(dp_time, dp_reward, linewidth=lw, color='red', marker='s', ms=14, label='Simulation', zorder=5)
-    plt.plot(dp_real_time, dp_real_reward, linewidth=lw, color='deepskyblue', marker='H', ms=14, label='Real world', zorder=5)
+    # plt.plot(dp_time, dp_reward, linewidth=lw, color='red', marker='s', ms=14, label='Simulation', zorder=5)
+    # plt.plot(dp_real_time, dp_real_reward, linewidth=lw, color='deepskyblue', marker='H', ms=14, label='Real world', zorder=5)
 
     max_step = np.ceil(np.max([fcfs_time[-1], opt_time[-1], opt_real_time[-1]])).astype(int)
     # max_step = 240
